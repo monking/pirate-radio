@@ -1,0 +1,1 @@
+[playlist]numberofentries=1File1=http://www.park.nl:8000/9bsTitle1=park:9beetstretchLength1=-1Version=2

@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+
+list=$1
+
+if [[ -z $list ]]; then
+	list=fav
+fi
+
+list=${list/.m3u/}
+
+listpath=$(dirname $0)/$list.m3u
+
+if [[ ! -f $listpath ]]; then
+	echo "$listpath doesn't exist"
+	exit 1
+fi
+
+mplayer -novideo -shuffle -loop 0 -playlist $listpath
