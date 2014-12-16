@@ -1,18 +1,51 @@
 #!/usr/bin/env bash
 
+# TODO:
+# - stream audio over the network
+#   - http://dzello.com/blog/2012/11/21/live-stream-audio-from-osx-mountain-lion-with-icecast-and-darkice/
+#     - pieces:
+#       - [soundflower](http://cycling74.com/soundflower-landing-page/)
+#       - jack `brew install jack`
+#       - darkice `brew install darkice --use-llvm`
+#       - icecast `brew install icecast`
+#     - process
+#       - jackdmp -d coreaudio
+
 list=$1
+
+shift 1
+
+options=$@
 
 if [[ -z $list ]]; then
 	list=fav
 fi
 
+shuffle=-shuffle
+video_options=-novideo
+audio_filters=
+
+for option in $options; do
+	case $option in
+		-no-shuffle ) shuffle=;;
+		-enable-video ) video_options=;;
+		-eq-normal ) audio_filters="$audio_filters equalizer=0:0:0:0:0:0:0:0:0:0";;
+		-eq-boom ) audio_filters="$audio_filters equalizer=2:8:0:0:0:0:0:0:0:0";;
+		* ) echo "unknown option '$option'. passing directly to mplayer"; otheroptions="$otheroptions $option";;
+	esac
+done
+
+if [[ -n $audio_filters ]]; then
+	audio_options="-af $audio_filters"
+fi
+
 list=${list/.m3u/}
 
-listpath=$(dirname $0)/$list.m3u
+listpath=$(dirname $0)/playlists/$list.m3u
 
 if [[ ! -f $listpath ]]; then
 	echo "$listpath doesn't exist"
 	exit 1
 fi
 
-mplayer -novideo -shuffle -loop 0 -playlist $listpath
+mplayer $video_options $audio_options $shuffle -loop 0 -playlist $listpath $otheroptions
