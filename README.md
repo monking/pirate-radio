@@ -10,7 +10,7 @@ The `play` script gives you some tools to play this stuff how you want it:
 
 - `-eq-boom` - boost the 31.25-62.5 Hz range (big buttery bass)
 - `-no-shuffle` - play the playlist in order
-- `-enable-video` - if a file in a playlist has audio, this will allow it to show
+- `-enable-video` - if a file in a playlist has video, this will allow it to show
 
 Any other options will be passed directly to `mplayer`.
 
