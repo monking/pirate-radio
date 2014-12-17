@@ -2,14 +2,13 @@
 
 # TODO:
 # - stream audio over the network
+#   - [-ao streaming driver?](http://www.linuxquestions.org/questions/linux-software-2/redirecting-mplayer-output-241666/)
 #   - http://dzello.com/blog/2012/11/21/live-stream-audio-from-osx-mountain-lion-with-icecast-and-darkice/
-#     - pieces:
-#       - [soundflower](http://cycling74.com/soundflower-landing-page/)
-#       - jack `brew install jack`
-#       - darkice `brew install darkice --use-llvm`
-#       - icecast `brew install icecast`
+#     - setup
+#       - `brew install jack darkice icecast`:
+#       - [soundflower](https://rogueamoeba.com/freebies/soundflower/)
 #     - process
-#       - jackdmp -d coreaudio
+#       - jackd -d coreaudio
 
 list=$1
 
@@ -31,12 +30,39 @@ for option in $options; do
 		-enable-video ) video_options=;;
 		-eq-normal ) audio_filters="$audio_filters equalizer=0:0:0:0:0:0:0:0:0:0";;
 		-eq-boom ) audio_filters="$audio_filters equalizer=2:8:0:0:0:0:0:0:0:0";;
+		-broadcast ) broadcast=y;;
 		* ) echo "unknown option '$option'. passing directly to mplayer"; otheroptions="$otheroptions $option";;
 	esac
 done
 
+if [[ $broadcast = y ]]; then
+
+	if [[ Darwin = $(uname) ]]; then
+		audio_driver=coreaudio
+		device_id=206
+	else
+		audio_driver="help"
+	fi
+
+	audio_options="$audio_options -ao $audio_driver"
+
+	if [[ -n $device_id ]]; then
+		audio_options="$audio_options:device_id=$device_id"
+	fi
+
+	echo "starting jackd"
+	jackd -d coreaudio &> /dev/null &
+
+	echo "starting icecast"
+	icecast -c $(dirname $0)/.service/icecast.default.xml
+
+	echo "starting darkice"
+	darkice -c $(dirname $0)/.service/darkice.cfg
+
+fi
+
 if [[ -n $audio_filters ]]; then
-	audio_options="-af $audio_filters"
+	audio_options="$audio_options -af $audio_filters"
 fi
 
 list=${list/.m3u/}
