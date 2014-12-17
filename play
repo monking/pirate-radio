@@ -10,7 +10,37 @@
 #     - process
 #       - jackd -d coreaudio
 
+wd="$(pwd)"
+cd "$(dirname $0)"
+script_dir="$(pwd)"
+cd $wd
+
 list=$1
+source=
+
+function clean_exit() {
+	echo "exiting cleanly, killing daemons"
+
+	if [[ $broadcast = y ]]; then
+		sudo killall jackd icecast darkice
+
+		# if [[ -n ${jackd_status[0]} ]]; then
+		# 	kill -HUP ${jackd_status[0]}
+		# fi
+
+		# if [[ -n ${icecast_status[0]} ]]; then
+		# 	kill -HUP ${icecast_status[0]}
+		# fi
+
+		# if [[ -n ${darkice_status[0]} ]]; then
+		# 	kill -HUP ${darkice_status[0]}
+		# fi
+	fi
+
+	[[ -z $1 ]] && status=0 || status=$1
+
+	exit $status
+}
 
 shift 1
 
@@ -35,6 +65,25 @@ for option in $options; do
 	esac
 done
 
+if [[ -n $audio_filters ]]; then
+	audio_options="$audio_options -af $audio_filters"
+fi
+
+if [[ $list =~ "http://" ]]; then
+	source="$list"
+else
+	list=${list/.m3u/}
+
+	listpath=$script_dir/playlists/$list.m3u
+
+	if [[ ! -f $listpath ]]; then
+		echo "$listpath doesn't exist"
+		clean_exit 1
+	fi
+
+	playlist_option="-playlist $listpath"
+fi
+
 if [[ $broadcast = y ]]; then
 
 	if [[ Darwin = $(uname) ]]; then
@@ -49,29 +98,30 @@ if [[ $broadcast = y ]]; then
 	if [[ -n $device_id ]]; then
 		audio_options="$audio_options:device_id=$device_id"
 	fi
+	cd $script_dir/.service
+	service_dir="$(pwd)"
 
 	echo "starting jackd"
+	# jackd -d coreaudio -A $device_id &> /dev/null & # Linux only
 	jackd -d coreaudio &> /dev/null &
+	jackd_status=($!,$?)
+	sleep 1
 
 	echo "starting icecast"
-	icecast -c $(dirname $0)/.service/icecast.default.xml
+	icecast -c "$service_dir/icecast.xml" &> /dev/null &
+	icecast_status=($! $?)
+	sleep 1
 
 	echo "starting darkice"
-	darkice -c $(dirname $0)/.service/darkice.cfg
+	darkice -v 10 -c "$service_dir/darkice.cfg" &> /dev/null &
+	darkice_status=($! $?)
+	if [[ 0 != ${darkice_status[1]} ]]; then
+		echo "Make sure soundflower is running, and is set to be default input and output. Once the radio is being broadcast, you can set your system default input and output back to the built-in."
+		clean_exit 1
+	fi
+	sleep 1
 
 fi
 
-if [[ -n $audio_filters ]]; then
-	audio_options="$audio_options -af $audio_filters"
-fi
-
-list=${list/.m3u/}
-
-listpath=$(dirname $0)/playlists/$list.m3u
-
-if [[ ! -f $listpath ]]; then
-	echo "$listpath doesn't exist"
-	exit 1
-fi
-
-mplayer $video_options $audio_options $shuffle -loop 0 -playlist $listpath $otheroptions
+mplayer $video_options $audio_options $shuffle -loop 0 $playlist_option $otheroptions $source
+clean_exit 0
