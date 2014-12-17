@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 
-# TODO:
-# - stream audio over the network
-#   - [-ao streaming driver?](http://www.linuxquestions.org/questions/linux-software-2/redirecting-mplayer-output-241666/)
-#   - http://dzello.com/blog/2012/11/21/live-stream-audio-from-osx-mountain-lion-with-icecast-and-darkice/
-#     - setup
-#       - `brew install jack darkice icecast`:
-#       - [soundflower](https://rogueamoeba.com/freebies/soundflower/)
-#     - process
-#       - jackd -d coreaudio
+# usage: ./play [playlist] [options] [mplayer options]
+#
+# to use the -braodcast option:
+# - do `brew install jack darkice icecast` in the command line
+# - install [soundflower](https://rogueamoeba.com/freebies/soundflower/)
+# - set soundflower 2ch to default input and output (System Preferences.app)
+# - run `./play playlist -broadcast`
+# - set default sound input/output back to the built-in
 
 wd="$(pwd)"
 cd "$(dirname $0)"
@@ -102,7 +101,6 @@ if [[ $broadcast = y ]]; then
 	service_dir="$(pwd)"
 
 	echo "starting jackd"
-	# jackd -d coreaudio -A $device_id &> /dev/null & # Linux only
 	jackd -d coreaudio &> /dev/null &
 	jackd_status=($!,$?)
 	sleep 1
