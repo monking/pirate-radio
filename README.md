@@ -4,7 +4,7 @@ The `play` script gives you some tools to play this stuff how you want it:
 
 ## usage
 
-`./play [playlist] [options]`
+`./play [playlist] [options] [mplayer options]`
 
 ## options
 
@@ -14,18 +14,20 @@ The `play` script gives you some tools to play this stuff how you want it:
 
 Any other options will be passed directly to `mplayer`.
 
+## broadcast
+
+- set soundflower 2ch to default input and output (System Preferences.app)
+- run `./play playlist -broadcast`
+- **if** you don't want your system sounds dumping into the radio broadcast
+	- set default sound input/output back to the built-in
+
 ## examples
 
 `./play hotline -eq-boom -volume 6`
 
-## dependencies
+## installation
 
-### mplayer
+### Mac
 
-- Mac [homebrew](http://brew.sh)
-
-	`brew install mplayer`
-
-- Ubuntu/Debian
-
-	`apt-get install mplayer`
+- do `brew install mplayer jack darkice icecast` in the command line
+- install [soundflower](https://rogueamoeba.com/freebies/soundflower/)

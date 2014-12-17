@@ -1,14 +1,5 @@
 #!/usr/bin/env bash
 
-# usage: ./play [playlist] [options] [mplayer options]
-#
-# to use the -braodcast option:
-# - do `brew install jack darkice icecast` in the command line
-# - install [soundflower](https://rogueamoeba.com/freebies/soundflower/)
-# - set soundflower 2ch to default input and output (System Preferences.app)
-# - run `./play playlist -broadcast`
-# - set default sound input/output back to the built-in
-
 wd="$(pwd)"
 cd "$(dirname $0)"
 script_dir="$(pwd)"
