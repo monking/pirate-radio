@@ -1,4 +1,4 @@
-# Lovejoy's Dropbox Music
+# Pirate Radio
 
 The `play` script gives you some tools to play this stuff how you want it:
 
