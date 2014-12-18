@@ -25,7 +25,7 @@
 
 If it doesn't work try this:
 - Run `say -a ?` (Mac only) to get a list of audio devices and their ID numbers.
-- edit the `play` script so that `device_id` is set to the value of your `soundflower 2ch` device.
+- edit the `play` script so that `device_id` is set to the value of your `Soundflower (2ch)` device.
 
 ## examples
 
