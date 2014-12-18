@@ -24,8 +24,7 @@
 	- set default sound input/output back to the built-in
 
 If it doesn't work try this:
-- Run `mplayer -ao coreaudio:help something.mp3`, where `something.mp3` is any file you can play (you must play _something_).
-- The output will include a list of audio devices and their ID numbers. Look for `soundflower 2ch`.
+- Run `say -a ?` (Mac only) to get a list of audio devices and their ID numbers.
 - edit the `play` script so that `device_id` is set to the value of your `soundflower 2ch` device.
 
 ## examples
