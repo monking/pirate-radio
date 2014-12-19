@@ -61,7 +61,7 @@ do
   case $flag in
     s ) shuffle=-shuffle;;
     v ) video_options=;;
-		e ) audio_filters="$audio_filters equalizer=$(eval "echo \$eq_$OPTARG")";;
+		e ) [[ $OPTARG =~ : ]] && eq="$OPTARG" || eq="$(eval "echo \$eq_$OPTARG")"; [[ -n $eq ]] && audio_filters="$audio_filters equalizer=$eq";;
 		b ) broadcast=true;;
 		y ) message="$OPTARG";;
     V ) voice="$OPTARG";;
@@ -88,8 +88,6 @@ fi
 
 if [[ -n $list || -n $mplayer_options ]]; then
 
-	echo "list: $list; mplayer_options: $mplayer_options"
-
 	if [[ -n $audio_filters ]]; then
 		audio_options="$audio_options -af $audio_filters"
 	fi
@@ -104,7 +102,7 @@ if [[ -n $list || -n $mplayer_options ]]; then
 			fi
 
 			if [[ ! -f $listpath ]]; then
-				echo "$listpath doesn't exist"
+				echo "Playlist '$listpath' doesn't exist. Exiting."
 				exit 1
 			fi
 
@@ -146,8 +144,6 @@ if [[ -n $list || -n $mplayer_options ]]; then
 		mkfifo "$control_file"
 
 		input_options="-slave -input file=\"$control_file\""
-
-		echo "control file: $control_file"
 
 	fi
 
