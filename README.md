@@ -17,8 +17,11 @@
 - `-b` - broadcast
 - `-y` - pipe a spoken message into Soundflower, thus the broadcast (excludes all other options)
 - `-V` - select a voice to speak in with `-y`. Pass `-V ?` for a list of voices
+- `-n` - fade out and skip to the next track in the playlist
+- `-p` - fade out and skip to the previous track in the playlist
 - `-l <playlist>`
 - `-q` - fade out and stop a broadcast
+- `-c` - pass an input command to mplayer (e.g. `pause` or `volume 15 1`)
 
 ## broadcast (currently Mac only)
 

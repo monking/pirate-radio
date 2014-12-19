@@ -21,6 +21,10 @@ function integer_tween() {
 	eval "${command/\%\%/$to}"
 }
 
+function fade_out() {
+	integer_tween "echo 'volume %% 1' >> \"$control_file\"" $default_volume 0
+}
+
 function clean_exit() {
 	echo "exiting cleanly, killing daemons"
 
@@ -56,7 +60,7 @@ broadcast=false
 
 eq_boom=2:8:0:0:0:0:0:0:0:0
 
-while getopts "sve:by:V:ql:" flag
+while getopts "sve:by:V:ql:c:np" flag
 do
   case $flag in
     s ) shuffle=-shuffle;;
@@ -66,7 +70,10 @@ do
 		y ) message="$OPTARG";;
     V ) voice="$OPTARG";;
 		l ) list="$OPTARG";;
+		n ) skip=1;echo "Skipping foward";;
+		p ) skip=-1;echo "Skipping backward";;
 		q ) kill=true;;
+		c ) command="$OPTARG";;
   esac
 done
 shift $((OPTIND-1)); OPTIND=1
@@ -155,9 +162,14 @@ if [[ -n $list || -n $mplayer_options ]]; then
 
 else
 
-	if [[ $kill = true ]]; then
+	if [[ -n $skip ]]; then
 
-		integer_tween "echo 'volume %% 1' >> \"$control_file\"" $default_volume 0
+		fade_out
+		echo 'pt_step $skip 1' >> "$control_file"
+
+	elif [[ $kill = true ]]; then
+
+		fade_out
 		echo 'quit' >> "$control_file"
 
 	elif [[ -n $message ]]; then
@@ -174,6 +186,10 @@ else
 			integer_tween "echo 'volume %% 1' >> $control_file" $duck_volume $default_volume
 
 		fi
+
+	elif [[ -n $command ]]; then
+
+		echo "$command" >> "$control_file"
 
 	fi
 
