@@ -6,6 +6,20 @@
 
 `./play [options] [mplayer options]`
 
+## examples
+
+broadcast playlist hotline.m3u:
+
+```
+./play -sbl hotline
+```
+
+listen to that broadcast from another computer:
+
+```
+.play -e boom http://10.0.1.12:8000/radio
+```
+
 ## options
 
 - `-s` - shuffle
@@ -43,14 +57,6 @@ Only when broadcasting:
 - **if** you don't want your system sounds dumping into the radio broadcast
 	- set default sound input/output back to the built-in
 - navigate to `http://localhost:8000/`, or whichever host/port you configured in `.service/icecast.xml`
-
-## examples
-
-`./play -sbl hotline -e boom -volume 6`
-- shuffles the playlist `<path to script>/playlists/hotline.m3u`
-- broadcasts the playback
-- sets EQ to preset `boom`
-- `-volume 6` will be passed through to `mplayer`
 
 ## caveats
 

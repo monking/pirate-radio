@@ -3,7 +3,7 @@
          on the server info page of the icecast web interface
          (server_version.xsl). -->
     <location>Earth</location>
-    <admin>c@lovejoy.io</admin>
+    <admin>icemaster@localhost</admin>
 
     <!-- IMPORTANT!
          Especially for inexperienced users:
