@@ -10,18 +10,31 @@
 
 - `-s` - shuffle
 - `-v` - the player hides video by default. This allows it to play
+- `-l <playlist>`
 - `-e [<preset or EQ>>]` the name of a preset below, or the value
 	for `mplayer -af equalizer=<EQ>`  
 	presets:
 	- `boom` - `2:8:0:0:0:0:0:0:0:0` (boost the 31.25-62.5 Hz range,  big buttery bass)
-- `-b` - broadcast
+- `-b` - broadcast to icecast on the port set in `.service/icecast.xml`
+
+Only when broadcasting:
+
 - `-y` - pipe a spoken message into Soundflower, thus the broadcast (excludes all other options)
 - `-V` - select a voice to speak in with `-y`. Pass `-V ?` for a list of voices
 - `-n` - fade out and skip to the next track in the playlist
 - `-p` - fade out and skip to the previous track in the playlist
-- `-l <playlist>`
 - `-q` - fade out and stop a broadcast
 - `-c` - pass an input command to mplayer (e.g. `pause` or `volume 15 1`)
+
+## installation
+
+- Copy `.service/darkice.default.cfg` to  `.service/darkice.cfg`, and make any changes you need.
+- Copy `.service/icecast.default.xml` to  `.service/icecast.xml`, and make any changes you need.
+
+### Mac
+
+- In the command line, do `brew install mplayer jack darkice icecast`
+- Install [Soundflower](https://rogueamoeba.com/freebies/soundflower/)
 
 ## broadcast (currently Mac only)
 
@@ -29,19 +42,15 @@
 - run `./play -l <playlist path> -b`
 - **if** you don't want your system sounds dumping into the radio broadcast
 	- set default sound input/output back to the built-in
+- navigate to `http://localhost:8000/`, or whichever host/port you configured in `.service/icecast.xml`
 
 ## examples
 
-`./play -sl hotline -e boom -volume 6`
-- shuffles the playlist `playlists/hotline.m3u`, with EQ preset `boom`
+`./play -sbl hotline -e boom -volume 6`
+- shuffles the playlist `<path to script>/playlists/hotline.m3u`
+- broadcasts the playback
+- sets EQ to preset `boom`
 - `-volume 6` will be passed through to `mplayer`
-
-## installation
-
-### Mac
-
-- In the command line, do `brew install mplayer jack darkice icecast`
-- Install [Soundflower](https://rogueamoeba.com/freebies/soundflower/)
 
 ## caveats
 
