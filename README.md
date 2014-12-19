@@ -17,7 +17,7 @@ broadcast playlist hotline.m3u:
 listen to that broadcast from another computer:
 
 ```
-.play -e boom http://10.0.1.12:8000/radio
+./play -e boom http://10.0.1.12:8000/radio
 ```
 
 ## options
