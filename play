@@ -3,15 +3,11 @@
 wd="$(pwd)"
 cd "$(dirname $0)"
 script_dir="$(pwd)"
+service_dir="$script_dir/.service"
+control_file="$service_dir/mplayercontrol"
+default_volume=25
+duck_volume=5
 cd $wd
-
-list=$1
-
-if [[ $list != -say ]]; then # FIXME: this is brittle
-	shift 1
-fi
-
-source=
 
 function integer_tween() {
 	command=$1
@@ -19,16 +15,17 @@ function integer_tween() {
 	to=$3
 	for i in {1..10}; do
 		value=$((($to-$from)*$i/10+$from))
-		${command/\%\%/$value}
+		eval "${command/\%\%/$value}"
 		gsleep 0.1
 	done
-	${command/\%\%/$to}
+	eval "${command/\%\%/$to}"
 }
 
 function clean_exit() {
 	echo "exiting cleanly, killing daemons"
 
-	if [[ $broadcast = y ]]; then
+	if [[ $broadcast = true ]]; then
+
 		sudo killall jackd icecast darkice
 
 		# if [[ -n ${jackd_status[0]} ]]; then
@@ -42,6 +39,9 @@ function clean_exit() {
 		# if [[ -n ${darkice_status[0]} ]]; then
 		# 	kill -HUP ${darkice_status[0]}
 		# fi
+
+		rm -rf "$control_file"
+
 	fi
 
 	[[ -z $1 ]] && status=0 || status=$1
@@ -49,79 +49,78 @@ function clean_exit() {
 	exit $status
 }
 
-options=$@
-
-if [[ -z $list ]]; then
-	list=fav
-fi
-
-shuffle=-shuffle
+shuffle=
 video_options=-novideo
 audio_filters=
+broadcast=false
 
-for option in $options; do
-	case $option in
-		-no-shuffle ) shuffle=;;
-		-enable-video ) video_options=;;
-		-eq-normal ) audio_filters="$audio_filters equalizer=0:0:0:0:0:0:0:0:0:0";;
-		-eq-boom ) audio_filters="$audio_filters equalizer=2:8:0:0:0:0:0:0:0:0";;
-		-broadcast ) broadcast=y;;
-		-say ) message="${options/*-say/}";break;;
-		* ) echo "unknown option '$option'. passing directly to mplayer"; otheroptions="$otheroptions $option";;
-	esac
+eq_boom=2:8:0:0:0:0:0:0:0:0
+
+while getopts "sve:by:V:ql:" flag
+do
+  case $flag in
+    s ) shuffle=-shuffle;;
+    v ) video_options=;;
+		e ) audio_filters="$audio_filters equalizer=$(eval "echo \$eq_$OPTARG")";;
+		b ) broadcast=true;;
+		y ) message="$OPTARG";;
+    V ) voice="$OPTARG";;
+		l ) list="$OPTARG";;
+		q ) kill=true;;
+  esac
 done
+shift $((OPTIND-1)); OPTIND=1
 
-if [[ -n $message || y = $broadcast ]]; then
+mplayer_options="$@"
+
+if [[ -n $message || $broadcast = true ]]; then
 	if [[ Darwin = $(uname) ]]; then
 		audio_driver=coreaudio
 		device_id=$(say -a ? | grep 'Soundflower (2ch)' | perl -pe 's/^\s+(\d+).*$/$1/')
 	else
 		audio_driver="help"
-		broadcast=
+		broadcast=false
 		message=
-		echo "-broadcast and -say are currently only supported on Mac"
+		echo "-b (broadcast) and -y (say) are currently only supported on Mac"
 		sleep 1
 	fi
 fi
 
-if [[ -n $message ]]; then
+if [[ -n $list || -n $mplayer_options ]]; then
 
-	integer_tween "echo -ne duck %%\\r" 25 10
-	echo -ne "\n"
-	echo "$message"
-	say -a $device_id "$message"
-	integer_tween "echo -ne un-duck %%\\r" 10 25
-
-else
+	echo "list: $list; mplayer_options: $mplayer_options"
 
 	if [[ -n $audio_filters ]]; then
 		audio_options="$audio_options -af $audio_filters"
 	fi
 
-	if [[ $list =~ "http://" ]]; then
-		source="$list"
-	else
-		list=${list/.m3u/}
+	if [[ -n $list ]]; then
 
-		listpath=$script_dir/playlists/$list.m3u
+		if [[ ! $list =~ "^https?://" ]]; then # playlist on local filesystem
 
-		if [[ ! -f $listpath ]]; then
-			echo "$listpath doesn't exist"
-			exit 1
+			if [[ ! $list =~ "^/" ]]; then # relative path
+				list=${list/.m3u/}
+				listpath=$script_dir/playlists/$list.m3u
+			fi
+
+			if [[ ! -f $listpath ]]; then
+				echo "$listpath doesn't exist"
+				exit 1
+			fi
+
 		fi
 
 		playlist_option="-playlist $listpath"
+
 	fi
 
-	if [[ $broadcast = y ]]; then
+	if [[ $broadcast = true ]]; then
 
 		audio_options="$audio_options -ao $audio_driver"
 
 		if [[ -n $device_id ]]; then
 			audio_options="$audio_options:device_id=$device_id"
 		fi
-		cd $script_dir/.service
-		service_dir="$(pwd)"
 
 		echo "starting jackd"
 		jackd -d coreaudio &> /dev/null &
@@ -140,14 +139,46 @@ else
 			echo "Make sure soundflower is running, and is set to be default input and output. Once the radio is being broadcast, you can set your system default input and output back to the built-in."
 			clean_exit 1
 		fi
+
 		sleep 1
+
+		rm -rf "$control_file"
+		mkfifo "$control_file"
+
+		input_options="-slave -input file=\"$control_file\""
+
+		echo "control file: $control_file"
 
 	fi
 
-	mplayer -slave -quiet $video_options $audio_options $shuffle -loop 0 $playlist_option $otheroptions $source
+	mplayer $input_options $video_options $audio_options $shuffle -loop 0 $playlist_option $mplayer_options
 
-	if [[ y = $broadcast ]]; then
+	if [[ $broadcast = true ]]; then
 		clean_exit 0
+	fi
+
+else
+
+	if [[ $kill = true ]]; then
+
+		integer_tween "echo 'volume %% 1' >> \"$control_file\"" $default_volume 0
+		echo 'quit' >> "$control_file"
+
+	elif [[ -n $message ]]; then
+
+		[[ -n $voice ]] && voice_options="-v $voice"
+
+		if [[ ? = $voice ]]; then
+			say $voice_options
+		else
+
+			echo "Ducking audio and speaking message \"$message\"."
+			integer_tween "echo 'volume %% 1' >> $control_file" $default_volume $duck_volume
+			say -a $device_id $voice_options "$message"
+			integer_tween "echo 'volume %% 1' >> $control_file" $duck_volume $default_volume
+
+		fi
+
 	fi
 
 fi
