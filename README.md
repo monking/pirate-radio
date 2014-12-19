@@ -15,17 +15,14 @@
 - `-eq-boom` - boost the 31.25-62.5 Hz range (big buttery bass)
 - `-no-shuffle` - play the playlist in order
 - `-enable-video` - if a file in a playlist has video, this will allow it to show
+- `-say` - pipe a spoken message into Soundflower, thus the broadcast (excludes all other options)
 
-## broadcast
+## broadcast (currently Mac only)
 
 - set soundflower 2ch to default input and output (System Preferences.app)
 - run `./play playlist -broadcast`
 - **if** you don't want your system sounds dumping into the radio broadcast
 	- set default sound input/output back to the built-in
-
-If it doesn't work try this:
-- Run `say -a ?` (Mac only) to get a list of audio devices and their ID numbers.
-- edit the `play` script so that `device_id` is set to the value of your `Soundflower (2ch)` device.
 
 ## examples
 

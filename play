@@ -6,7 +6,24 @@ script_dir="$(pwd)"
 cd $wd
 
 list=$1
+
+if [[ $list != -say ]]; then # FIXME: this is brittle
+	shift 1
+fi
+
 source=
+
+function integer_tween() {
+	command=$1
+	from=$2
+	to=$3
+	for i in {1..10}; do
+		value=$((($to-$from)*$i/10+$from))
+		${command/\%\%/$value}
+		gsleep 0.1
+	done
+	${command/\%\%/$to}
+}
 
 function clean_exit() {
 	echo "exiting cleanly, killing daemons"
@@ -32,8 +49,6 @@ function clean_exit() {
 	exit $status
 }
 
-shift 1
-
 options=$@
 
 if [[ -z $list ]]; then
@@ -51,66 +66,88 @@ for option in $options; do
 		-eq-normal ) audio_filters="$audio_filters equalizer=0:0:0:0:0:0:0:0:0:0";;
 		-eq-boom ) audio_filters="$audio_filters equalizer=2:8:0:0:0:0:0:0:0:0";;
 		-broadcast ) broadcast=y;;
+		-say ) message="${options/*-say/}";break;;
 		* ) echo "unknown option '$option'. passing directly to mplayer"; otheroptions="$otheroptions $option";;
 	esac
 done
 
-if [[ -n $audio_filters ]]; then
-	audio_options="$audio_options -af $audio_filters"
-fi
-
-if [[ $list =~ "http://" ]]; then
-	source="$list"
-else
-	list=${list/.m3u/}
-
-	listpath=$script_dir/playlists/$list.m3u
-
-	if [[ ! -f $listpath ]]; then
-		echo "$listpath doesn't exist"
-		clean_exit 1
-	fi
-
-	playlist_option="-playlist $listpath"
-fi
-
-if [[ $broadcast = y ]]; then
-
+if [[ -n $message || y = $broadcast ]]; then
 	if [[ Darwin = $(uname) ]]; then
 		audio_driver=coreaudio
-		device_id=206
+		device_id=$(say -a ? | grep 'Soundflower (2ch)' | perl -pe 's/^\s+(\d+).*$/$1/')
 	else
 		audio_driver="help"
+		broadcast=
+		message=
+		echo "-broadcast and -say are currently only supported on Mac"
+		sleep 1
 	fi
-
-	audio_options="$audio_options -ao $audio_driver"
-
-	if [[ -n $device_id ]]; then
-		audio_options="$audio_options:device_id=$device_id"
-	fi
-	cd $script_dir/.service
-	service_dir="$(pwd)"
-
-	echo "starting jackd"
-	jackd -d coreaudio &> /dev/null &
-	jackd_status=($!,$?)
-	sleep 1
-
-	echo "starting icecast"
-	icecast -c "$service_dir/icecast.xml" &> /dev/null &
-	icecast_status=($! $?)
-	sleep 1
-
-	echo "starting darkice"
-	darkice -v 10 -c "$service_dir/darkice.cfg" &> /dev/null &
-	darkice_status=($! $?)
-	if [[ 0 != ${darkice_status[1]} ]]; then
-		echo "Make sure soundflower is running, and is set to be default input and output. Once the radio is being broadcast, you can set your system default input and output back to the built-in."
-		clean_exit 1
-	fi
-	sleep 1
-
 fi
 
-mplayer $video_options $audio_options $shuffle -loop 0 $playlist_option $otheroptions $source
-clean_exit 0
+if [[ -n $message ]]; then
+
+	integer_tween "echo -ne duck %%\\r" 25 10
+	echo -ne "\n"
+	echo "$message"
+	say -a $device_id "$message"
+	integer_tween "echo -ne un-duck %%\\r" 10 25
+
+else
+
+	if [[ -n $audio_filters ]]; then
+		audio_options="$audio_options -af $audio_filters"
+	fi
+
+	if [[ $list =~ "http://" ]]; then
+		source="$list"
+	else
+		list=${list/.m3u/}
+
+		listpath=$script_dir/playlists/$list.m3u
+
+		if [[ ! -f $listpath ]]; then
+			echo "$listpath doesn't exist"
+			exit 1
+		fi
+
+		playlist_option="-playlist $listpath"
+	fi
+
+	if [[ $broadcast = y ]]; then
+
+		audio_options="$audio_options -ao $audio_driver"
+
+		if [[ -n $device_id ]]; then
+			audio_options="$audio_options:device_id=$device_id"
+		fi
+		cd $script_dir/.service
+		service_dir="$(pwd)"
+
+		echo "starting jackd"
+		jackd -d coreaudio &> /dev/null &
+		jackd_status=($!,$?)
+		sleep 1
+
+		echo "starting icecast"
+		icecast -c "$service_dir/icecast.xml" &> /dev/null &
+		icecast_status=($! $?)
+		sleep 1
+
+		echo "starting darkice"
+		darkice -v 10 -c "$service_dir/darkice.cfg" &> /dev/null &
+		darkice_status=($! $?)
+		if [[ 0 != ${darkice_status[1]} ]]; then
+			echo "Make sure soundflower is running, and is set to be default input and output. Once the radio is being broadcast, you can set your system default input and output back to the built-in."
+			clean_exit 1
+		fi
+		sleep 1
+
+	fi
+
+	mplayer -slave -quiet $video_options $audio_options $shuffle -loop 0 $playlist_option $otheroptions $source
+
+	if [[ y = $broadcast ]]; then
+		clean_exit 0
+	fi
+
+fi
