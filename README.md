@@ -8,13 +8,13 @@
 
 ## examples
 
-broadcast playlist hotline.m3u:
+Broadcast the playlist hotline.m3u, shuffled:
 
 ```
 ./play -sbl hotline
 ```
 
-listen to that broadcast from another computer:
+Listen to that broadcast from another computer, with extra bass:
 
 ```
 ./play -e boom http://10.0.1.12:8000/radio
