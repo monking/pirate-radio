@@ -189,7 +189,7 @@ else
 
 	elif [[ -n $command ]]; then
 
-		echo "$command" >> "$control_file"
+		echo -e "$command" >> "$control_file"
 
 	fi
 
