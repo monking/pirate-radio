@@ -30,19 +30,19 @@ function clean_exit() {
 
 	if [[ $broadcast = true ]]; then
 
-		sudo killall jackd icecast darkice
+		# sudo killall jackd icecast darkice
 
-		# if [[ -n ${jackd_status[0]} ]]; then
-		# 	kill -HUP ${jackd_status[0]}
-		# fi
+		if [[ -n ${jackd_status[0]} ]]; then
+			kill -HUP ${jackd_status[0]}
+		fi
 
-		# if [[ -n ${icecast_status[0]} ]]; then
-		# 	kill -HUP ${icecast_status[0]}
-		# fi
+		if [[ -n ${icecast_status[0]} ]]; then
+			kill -HUP ${icecast_status[0]}
+		fi
 
-		# if [[ -n ${darkice_status[0]} ]]; then
-		# 	kill -HUP ${darkice_status[0]}
-		# fi
+		if [[ -n ${darkice_status[0]} ]]; then
+			kill -HUP ${darkice_status[0]}
+		fi
 
 		rm -rf "$control_file"
 
@@ -93,79 +93,36 @@ if [[ -n $message || $broadcast = true ]]; then
 	fi
 fi
 
-if [[ -n $list || -n $mplayer_options ]]; then
+if [[ -n $list ]]; then
 
-	if [[ -n $audio_filters ]]; then
-		audio_options="$audio_options -af $audio_filters"
-	fi
+	if [[ ! $list =~ "^https?://" ]]; then # playlist on local filesystem
 
-	if [[ -n $list ]]; then
-
-		if [[ ! $list =~ "^https?://" ]]; then # playlist on local filesystem
-
-			if [[ ! $list =~ "^/" ]]; then # relative path
-				list=${list/.m3u/}
-				listpath=$script_dir/playlists/$list.m3u
-			fi
-
-			if [[ ! -f $listpath ]]; then
-				echo "Playlist '$listpath' doesn't exist. Exiting."
-				exit 1
-			fi
-
+		if [[ ! $list =~ "^/" ]]; then # relative path
+			list=${list/.m3u/}
+			listpath=$script_dir/playlists/$list.m3u
 		fi
 
-		playlist_option="-playlist $listpath"
-
-	fi
-
-	if [[ $broadcast = true ]]; then
-
-		audio_options="$audio_options -ao $audio_driver"
-
-		if [[ -n $device_id ]]; then
-			audio_options="$audio_options:device_id=$device_id"
+		if [[ ! -f $listpath ]]; then
+			echo "Playlist '$listpath' doesn't exist. Exiting."
+			exit 1
 		fi
 
-		echo "starting jackd"
-		jackd -d coreaudio &> /dev/null &
-		jackd_status=($!,$?)
-		sleep 1
-
-		echo "starting icecast"
-		icecast -c "$service_dir/icecast.xml" &> /dev/null &
-		icecast_status=($! $?)
-		sleep 1
-
-		echo "starting darkice"
-		darkice -v 10 -c "$service_dir/darkice.cfg" &> /dev/null &
-		darkice_status=($! $?)
-		if [[ 0 != ${darkice_status[1]} ]]; then
-			echo "Make sure soundflower is running, and is set to be default input and output. Once the radio is being broadcast, you can set your system default input and output back to the built-in."
-			clean_exit 1
-		fi
-
-		sleep 1
-
-		rm -rf "$control_file"
-		mkfifo "$control_file"
-
-		input_options="-slave -input file=\"$control_file\""
-
 	fi
 
-	mplayer $input_options $video_options $audio_options $shuffle -loop 0 $playlist_option $mplayer_options
+	playlist_option="-playlist $listpath"
 
-	if [[ $broadcast = true ]]; then
-		clean_exit 0
-	fi
+fi
 
-else
+if [[ -f "$control_file" ]]; then # broadcast is already running
 
 	if [[ -n $skip ]]; then
 
 		fade_out
 		echo 'pt_step $skip 1' >> "$control_file"
+
+	elif [[ -n $listpath ]]; then
+
+		echo "loadlist '$listpath'" >> "$control_file"
 
 	elif [[ $kill = true ]]; then
 
@@ -191,6 +148,53 @@ else
 
 		echo -e "$command" >> "$control_file"
 
+	fi
+
+elif [[ $broadcast = true ]]; then # new brodcast
+
+	audio_options="$audio_options -ao $audio_driver"
+
+	if [[ -n $device_id ]]; then
+		audio_options="$audio_options:device_id=$device_id"
+	fi
+
+	echo "starting jackd"
+	jackd -d coreaudio &> /dev/null &
+	jackd_status=($!,$?)
+	sleep 1
+
+	echo "starting icecast"
+	icecast -c "$service_dir/icecast.xml" &> /dev/null &
+	icecast_status=($! $?)
+	sleep 1
+
+	echo "starting darkice"
+	darkice -v 10 -c "$service_dir/darkice.cfg" &> /dev/null &
+	darkice_status=($! $?)
+
+	if [[ 0 != ${darkice_status[1]} ]]; then
+		echo "Make sure soundflower is running, and is set to be default input and output. Once the radio is being broadcast, you can set your system default input and output back to the built-in."
+		clean_exit 1
+	fi
+
+	sleep 1
+
+	mkfifo "$control_file"
+
+	input_options="-slave -input file=\"$control_file\""
+
+fi
+
+if [[ -n $audio_filters ]]; then
+	audio_options="$audio_options -af $audio_filters"
+fi
+
+if [[ -n $playlist_option || -n $mplayer_options ]]; then
+
+	mplayer $input_options $video_options $audio_options $shuffle -loop 0 $playlist_option $mplayer_options
+
+	if [[ $broadcast = true ]]; then
+		clean_exit 0
 	fi
 
 fi
