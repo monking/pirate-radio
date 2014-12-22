@@ -1,26 +1,26 @@
 # Pirate Radio
 
-`play` some music, and stream it to your buddies.
+simple command-line radio station
 
 ## usage
 
-`./play [options] [mplayer options]`
+`pirr [options] [mplayer options]`
 
 ## examples
 
 Broadcast the playlist hotline.m3u, shuffled:
-```
-./play -sbl hotline
+``` sh
+pirr -sbl hotline
 ```
 
 Listen to that broadcast from another computer, with extra bass:
-```
-./play -e boom http://10.0.1.12:8000/radio
+``` sh
+pirr -e boom http://10.0.1.12:8000/radio
 ```
 
 Change playlists on a live broadcast
-```
-./play -f fadeout -l newplaylist
+``` sh
+pirr -f fadeout -l newplaylist
 ```
 
 ## options
@@ -40,13 +40,10 @@ Change playlists on a live broadcast
 Only when broadcasting:
 
 - `-y` - pipe a spoken message into Soundflower, thus the broadcast (excludes all other options)
-- `-V` - select a voice to speak in with `-y`. Pass `-V ?` for a list of voices
-- `-n` - skip to the next track in the playlist
-- `-N` - same as `-n`, but fade out first
-- `-p` - skip to the previous track in the playlist
-- `-P` - same as `-p`, but fade out first
-- `-q` - stop a broadcast
-- `-Q` - same as `-q`, but fade out first
+- `-V` - select a voice to speak in with `-y`. Pass `-V ?` for a list of voices.
+- `-n` `-N` - skip to the next track in the playlist. `-N` for no fadeout.
+- `-p` `-P` - skip to the previous track in the playlist. `-P` for no fadeout.
+- `-q` `-Q` - stop a broadcast. `-Q` for no fadeout
 - `-c` - pass an input command to mplayer (e.g. `pause` or `volume 15 1`)
 - `-f` - apply an effect before (must be the first option) or after any other command.
 	- `fade` - fade volume between two values; use quotes, as `-f "fade <from> <to>". Volume is usually set at 25/100.`
@@ -71,7 +68,7 @@ Only when broadcasting:
 ## broadcast (currently Mac only)
 
 - set soundflower 2ch to default input and output (System Preferences.app)
-- run `./play -l <playlist path> -b`
+- run `pirr -l <playlist path> -b`
 - **if** you don't want your system sounds dumping into the radio broadcast
 	- set default sound input/output back to the built-in
 - navigate to `http://localhost:8000/`, or whichever host/port you configured in `.service/icecast.xml`

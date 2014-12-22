@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 
 wd="$(pwd)"
-cd "$(dirname $0)"
+[[ -L "$0" ]] && script_path="$(readlink $0)" || script_path="$0"
+cd "$(dirname $script_path)"
 script_dir="$(pwd)"
 service_dir="$script_dir/.service"
 control_file="$service_dir/mplayercontrol"
 default_volume=25
 duck_volume=5
-cd $wd
+cd "$wd"
 
 function integer_tween() {
 	local command from to value i
@@ -71,7 +72,7 @@ eq_boom=2:8:0:0:0:0:0:0:0:0
 
 first_optind=
 
-while getopts "sve:by:V:ql:c:npf:NPQ" flag
+while getopts "sve:by:V:l:f:c:npqNPQ" flag
 do
 
 	[[ -z $first_optind ]] && first_optind=$OPTIND
@@ -85,18 +86,20 @@ do
     V ) voice="$OPTARG";;
 		l ) list="$OPTARG";;
 
-		n ) skip=1;  echo "Skipping foward";;
-		p ) skip=-1; echo "Skipping backward";;
-		q ) kill=true;;
+		n ) effect=fadeout; effect_optind=$first_optind; skip=1;    echo "Skipping foward";;
+		p ) effect=fadeout; effect_optind=$first_optind; skip=-1;   echo "Skipping backward";;
+		q ) effect=fadeout; effect_optind=$first_optind; kill=true; echo "Stopping broadcast";;
 
-		N ) effect=fadeout; effect_optind=0; skip=1;    echo "Skipping foward";;
-		P ) effect=fadeout; effect_optind=0; skip=-1;   echo "Skipping backward";;
-		Q ) effect=fadeout; effect_optind=0; kill=true; echo "Stopping broadcast";;
+		N ) skip=1;  echo "Skipping foward";;
+		P ) skip=-1; echo "Skipping backward";;
+		Q ) kill=true;;
 
 		f ) effect="$OPTARG";effect_optind=$OPTIND;;
 		c ) command="$OPTARG";;
   esac
+
 done
+
 shift $((OPTIND-1)); OPTIND=1
 
 mplayer_options="$@"
@@ -138,11 +141,12 @@ if [[ -a "$control_file" ]]; then # broadcast is already running
 
 	playlist_option= # unset playlist option: do not start up a new player
 
+	echo "effect: $effect, index: $effect_optind" #XXX
 	if [[ -n $effect && $effect_optind -eq $first_optind ]]; then effect_$effect; fi
 
 	if [[ -n $skip ]]; then
 
-		echo 'pt_step $skip 1' >> "$control_file"
+		echo "pt_step $skip 1" >> "$control_file"
 
 	elif [[ -n $listpath ]]; then
 
