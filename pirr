@@ -141,7 +141,6 @@ if [[ -a "$control_file" ]]; then # broadcast is already running
 
 	playlist_option= # unset playlist option: do not start up a new player
 
-	echo "effect: $effect, index: $effect_optind" #XXX
 	if [[ -n $effect && $effect_optind -eq $first_optind ]]; then effect_$effect; fi
 
 	if [[ -n $skip ]]; then
