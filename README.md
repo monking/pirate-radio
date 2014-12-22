@@ -9,24 +9,30 @@
 ## examples
 
 Broadcast the playlist hotline.m3u, shuffled:
-
 ```
 ./play -sbl hotline
 ```
 
 Listen to that broadcast from another computer, with extra bass:
-
 ```
 ./play -e boom http://10.0.1.12:8000/radio
 ```
 
+Change playlists on a live broadcast
+```
+./play -f fadeout -l newplaylist
+```
+
 ## options
 
-- `-s` - shuffle
+- `-s` - shuffle a playlist. Used only with `-l`, and is forgotten upon
+	subsequent calls with `-l`, unless `-s` is included again.
 - `-v` - the player hides video by default. This allows it to play
-- `-l <playlist>`
-- `-e [<preset or EQ>>]` the name of a preset below, or the value
-	for `mplayer -af equalizer=<EQ>`  
+- `-l <playlist>` - play from a playlist. If a broadcast is active, this
+	switches out the playlist.
+- `-e [<preset or EQ>>]` - set equalizer to a preset or literal value, in the
+	format that `mplayer -af equalizer=<EQ>` uses.
+
 	presets:
 	- `boom` - `2:8:0:0:0:0:0:0:0:0` (boost the 31.25-62.5 Hz range,  big buttery bass)
 - `-b` - broadcast to icecast on the port set in `.service/icecast.xml`
@@ -35,10 +41,17 @@ Only when broadcasting:
 
 - `-y` - pipe a spoken message into Soundflower, thus the broadcast (excludes all other options)
 - `-V` - select a voice to speak in with `-y`. Pass `-V ?` for a list of voices
-- `-n` - fade out and skip to the next track in the playlist
-- `-p` - fade out and skip to the previous track in the playlist
-- `-q` - fade out and stop a broadcast
+- `-n` - skip to the next track in the playlist
+- `-N` - same as `-n`, but fade out first
+- `-p` - skip to the previous track in the playlist
+- `-P` - same as `-p`, but fade out first
+- `-q` - stop a broadcast
+- `-Q` - same as `-q`, but fade out first
 - `-c` - pass an input command to mplayer (e.g. `pause` or `volume 15 1`)
+- `-f` - apply an effect before (must be the first option) or after any other command.
+	- `fade` - fade volume between two values; use quotes, as `-f "fade <from> <to>". Volume is usually set at 25/100.`
+	- `fadeout` - fade out over 1 second
+	- `fadein` - fade in over 1 second
 
 ## installation
 
@@ -47,7 +60,12 @@ Only when broadcasting:
 
 ### Mac
 
-- In the command line, do `brew install mplayer jack darkice icecast`
+- In the command line, do `brew install mplayer jack darkice icecast coreutils`
+	- `mplayer` is the media player
+	- `jack` captures output from soundflower
+	- `darkice` streams from jack to the radio server
+	- `icecast` is the radio server
+	- `coreutils` contains `gshuf`, which is needed for dynamically loading a shuffled playlist
 - Install [Soundflower](https://rogueamoeba.com/freebies/soundflower/)
 
 ## broadcast (currently Mac only)

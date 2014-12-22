@@ -10,6 +10,7 @@ duck_volume=5
 cd $wd
 
 function integer_tween() {
+	local command from to value i
 	command=$1
 	from=$2
 	to=$3
@@ -21,8 +22,16 @@ function integer_tween() {
 	eval "${command/\%\%/$to}"
 }
 
-function fade_out() {
-	integer_tween "echo 'volume %% 1' >> \"$control_file\"" $default_volume 0
+function effect_fade() {
+	integer_tween "echo 'volume %% 1' >> \"$control_file\"" $1 $2
+}
+
+function effect_fadeout() {
+	effect_fade $default_volume 0
+}
+
+function effect_fadein() {
+	effect_fade 0 $default_volume
 }
 
 function clean_exit() {
@@ -60,19 +69,31 @@ broadcast=false
 
 eq_boom=2:8:0:0:0:0:0:0:0:0
 
-while getopts "sve:by:V:ql:c:np" flag
+first_optind=
+
+while getopts "sve:by:V:ql:c:npf:NPQ" flag
 do
+
+	[[ -z $first_optind ]] && first_optind=$OPTIND
+
   case $flag in
-    s ) shuffle=-shuffle;;
+    s ) shuffle=true;;
     v ) video_options=;;
 		e ) [[ $OPTARG =~ : ]] && eq="$OPTARG" || eq="$(eval "echo \$eq_$OPTARG")"; [[ -n $eq ]] && audio_filters="$audio_filters equalizer=$eq";;
 		b ) broadcast=true;;
 		y ) message="$OPTARG";;
     V ) voice="$OPTARG";;
 		l ) list="$OPTARG";;
-		n ) skip=1;echo "Skipping foward";;
-		p ) skip=-1;echo "Skipping backward";;
+
+		n ) skip=1;  echo "Skipping foward";;
+		p ) skip=-1; echo "Skipping backward";;
 		q ) kill=true;;
+
+		N ) effect=fadeout; effect_optind=0; skip=1;    echo "Skipping foward";;
+		P ) effect=fadeout; effect_optind=0; skip=-1;   echo "Skipping backward";;
+		Q ) effect=fadeout; effect_optind=0; kill=true; echo "Stopping broadcast";;
+
+		f ) effect="$OPTARG";effect_optind=$OPTIND;;
 		c ) command="$OPTARG";;
   esac
 done
@@ -113,20 +134,32 @@ if [[ -n $list ]]; then
 
 fi
 
-if [[ -f "$control_file" ]]; then # broadcast is already running
+if [[ -a "$control_file" ]]; then # broadcast is already running
+
+	playlist_option= # unset playlist option: do not start up a new player
+
+	if [[ -n $effect && $effect_optind -eq $first_optind ]]; then effect_$effect; fi
 
 	if [[ -n $skip ]]; then
 
-		fade_out
 		echo 'pt_step $skip 1' >> "$control_file"
 
 	elif [[ -n $listpath ]]; then
 
-		echo "loadlist '$listpath'" >> "$control_file"
+		if [[ $shuffle = true ]]; then
+
+			new_listpath="$service_dir/tmp_playlist.m3u"
+
+			cat "$listpath" | gshuf > "$new_listpath"
+
+			listpath="$new_listpath"
+
+		fi
+
+		echo "loadlist '$listpath'"  >> "$control_file"
 
 	elif [[ $kill = true ]]; then
 
-		fade_out
 		echo 'quit' >> "$control_file"
 
 	elif [[ -n $message ]]; then
@@ -138,9 +171,9 @@ if [[ -f "$control_file" ]]; then # broadcast is already running
 		else
 
 			echo "Ducking audio and speaking message \"$message\"."
-			integer_tween "echo 'volume %% 1' >> $control_file" $default_volume $duck_volume
+			effect_fade $default_volume $duck_volume
 			say -a $device_id $voice_options "$message"
-			integer_tween "echo 'volume %% 1' >> $control_file" $duck_volume $default_volume
+			effect_fade $duck_volume $default_volume
 
 		fi
 
@@ -149,6 +182,8 @@ if [[ -f "$control_file" ]]; then # broadcast is already running
 		echo -e "$command" >> "$control_file"
 
 	fi
+
+	if [[ -n $effect && $effect_optind -gt $first_optind ]]; then effect_$effect; fi
 
 elif [[ $broadcast = true ]]; then # new brodcast
 
@@ -185,13 +220,17 @@ elif [[ $broadcast = true ]]; then # new brodcast
 
 fi
 
+if [[ $shuffle = true ]]; then
+	shuffle_option="-shuffle"
+fi
+
 if [[ -n $audio_filters ]]; then
 	audio_options="$audio_options -af $audio_filters"
 fi
 
 if [[ -n $playlist_option || -n $mplayer_options ]]; then
 
-	mplayer $input_options $video_options $audio_options $shuffle -loop 0 $playlist_option $mplayer_options
+	mplayer $input_options $video_options $audio_options $shuffle_option -loop 0 $playlist_option $mplayer_options
 
 	if [[ $broadcast = true ]]; then
 		clean_exit 0
