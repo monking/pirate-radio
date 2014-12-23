@@ -100,7 +100,7 @@ wd="$(pwd)"
 [[ -L "$0" ]] && script_path="$(readlink $0)" || script_path="$0"
 cd "$(dirname $script_path)"
 script_dir="$(pwd)"
-service_dir="$script_dir/.service"
+service_dir="$script_dir/.pirr"
 control_file="$service_dir/.mplayercontrol"
 volume_file="$service_dir/.mplayervolume"
 default_volume=25
