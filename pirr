@@ -12,8 +12,9 @@ cd "$(dirname $script_path)"
 script_dir="$(pwd)"
 cd "$wd"
 service_dir="$script_dir/.pirr"
-control_file="$service_dir/.mplayercontrol"
-volume_file="$service_dir/.mplayervolume"
+tmp_dir="$service_dir/tmp"
+control_file="$tmp_dir/mplayercontrol"
+volume_file="$tmp_dir/mplayervolume"
 
 ##
 # utility functions
@@ -21,13 +22,15 @@ volume_file="$service_dir/.mplayervolume"
 
 . $service_dir/functions
 
+whisper "functions loaded"
+
 ##
 # setup
 ##
 
 default_volume=25
 duck_volume=5
-[[ ! -f $volume_file ]] && set_volume $default_volume
+[[ -f $volume_file ]] || set_volume $default_volume
 
 video_options=-novideo
 broadcast=false
@@ -38,7 +41,7 @@ eq_boom=2:8:0:0:0:0:0:0:0:0
 # operation
 ##
 
-while getopts "sve:by:V:l:anpkqf:c:St:" flag
+while getopts "sve:by:V:l:anpkqx:c:St:f" flag
 do
 
 	[[ -z $first_optind ]] && first_optind=$OPTIND
@@ -52,23 +55,34 @@ do
     V ) voice="$OPTARG";;
 		l ) list="$OPTARG";;
 		a ) list_append=true;;
-		n ) skip=1;  shout "Skipping foward";;
-		p ) skip=-1; shout "Skipping backward";;
+		n ) skip=1;;
+		p ) skip=-1;;
 		k ) kill=true;;
 		q ) quiet=true;;
 
-		f ) effect="$OPTARG";effect_optind=$OPTIND;;
+		x ) effect="$OPTARG";effect_optind=$OPTIND;;
 		c ) command="$OPTARG";;
 
 		S ) sticky=true;;
 		t ) seek=$OPTARG;;
+
+		f ) force=true;;
   esac
 
 done
 
-whisper "verbose output enabled"
+whisper "starting pirate radio script"
 
 shift $((OPTIND-1)); OPTIND=1
+
+mkdir -p "$tmp_dir"
+
+if [[ $kill = true ]]; then
+
+	kill_daemons
+	rm -rf $tmp_dir/*
+
+fi
 
 mplayer_options="$@"
 
@@ -109,52 +123,40 @@ fi
 
 if [[ -a "$control_file" ]]; then
 
-	whisper "broadcast is already running"
+	whisper "using existing broadcast"
 
 	playlist_option= # unset playlist option: do not start up a new player
 
-	if [[ -n $effect && $effect_optind -eq $first_optind ]]; then effect_$effect; fi
+	if [[ -n $effect && $effect_optind -eq $first_optind ]]; then
+		whisper "doing effect FIRST $effect"
+		effect_$effect
+	fi
 
 	##
 	# playback operations
 	##
 
-	if [[ $kill = true ]]; then
-
-		whisper "sending to mplayer: quit"
-
-		echo 'quit' >> "$control_file"
-
-		kill_daemons # FIXME: check if they need to be killed first
-
-	elif [[ -n $listpath ]]; then
+	if [[ -n $listpath ]]; then
 
 		if [[ $shuffle = true ]]; then
-
-			new_listpath="$service_dir/tmp_playlist.m3u"
-
+			new_listpath="$tmp_dir/tmp_playlist.m3u"
 			whisper "shuffling list into $new_listpath"
-
 			cat "$listpath" | gshuf > "$new_listpath"
-
 			listpath="$new_listpath"
-
 		fi
 
+		whisper "dynamically loading list $listpath"
 		[[ $list_append = true ]] && append=1
-
 		echo "loadlist '$listpath' $append"  >> "$control_file"
 
 	elif [[ -n $skip ]]; then
 
 		whisper "skipping: $skip"
-
 		echo "pt_step $skip 1" >> "$control_file"
 
 	elif [[ -n $command ]]; then
 
 		whisper "sending to mplayer: $command"
-
 		echo -e "$command" >> "$control_file"
 
 	fi
@@ -165,6 +167,7 @@ if [[ -a "$control_file" ]]; then
 
 	if [[ -n $message ]]; then
 
+		whisper "preparing to speak message"
 		[[ -n $voice ]] && voice_options="-v $voice"
 
 		if [[ ? = $voice ]]; then
@@ -180,24 +183,31 @@ if [[ -a "$control_file" ]]; then
 
 	fi
 
-	if [[ -n $effect && $effect_optind -gt $first_optind ]]; then effect_$effect; fi
+	if [[ -n $effect && $effect_optind -gt $first_optind ]]; then
+		whisper "doing effect LAST $effect"
+		effect_$effect
+	fi
 
 elif [[ $broadcast = true ]]; then # new brodcast
 
+	whisper "new broadcast"
 	audio_options="$audio_options -ao $audio_driver"
 
 	if [[ -n $device_id ]]; then
+		whisper "broadcast to audio device $device_id"
 		audio_options="$audio_options:device_id=$device_id"
 	fi
 
+	whisper "starting daemons for broadcast"
 	start_daemon jackd -d coreaudio
 	sleep 1
 	start_daemon icecast -c "$service_dir/icecast.xml"
 	sleep 1
 	start_daemon darkice -v 10 -c "$service_dir/darkice.cfg"
 
+	whisper "checking darkice status"
 	if [[ 0 != $(get_daemon_result darkice) ]]; then
-		shout "Make sure soundflower is running, and is set to be default input and output. Once the radio is being broadcast, you can set your system default input and output back to the built-in."
+		shout "Make sure that soundflower is running, and is set to be default input and output. Once your broadcast is started, you may want to set your default audio input and output back to the built-in."
 		clean_exit 1
 	fi
 
@@ -217,12 +227,16 @@ if [[ -n $playlist_option || -n $mplayer_options ]]; then
 
 	mkfifo "$control_file"
 
-	input_options="-slave -input file=\"$control_file\""
+	input_options="-slave -quiet -input file=\"$control_file\""
 
-	mplayer $input_options $video_options $audio_options $shuffle_option -loop 0 $playlist_option $mplayer_options
+	whisper "starting mplayer as a daemon"
+	mplayer_output="$tmp_dir/mplayer_output"
+	mkfifo "$mplayer_output"
+	start_daemon -o $mplayer_output mplayer $input_options $video_options $audio_options $shuffle_option -loop 0 $playlist_option $mplayer_options
 
 	if [[ $broadcast = true ]]; then
 		clean_exit 0
 	fi
 
 fi
+whisper "ending pirate radio script"

@@ -36,6 +36,7 @@ In any mode:
 
 	presets:
 	- `boom` - `2:8:0:0:0:0:0:0:0:0` (boost the 31.25-62.5 Hz range,  big buttery bass)
+- `-f ` - force past warnings (e.g. quitting daemons)
 
 Only when starting:
 
@@ -51,8 +52,8 @@ Only while a broadcast is active:
 - `-k` - stop a broadcast
 - `-q` - quiet: suppress all output to stdout
 - `-c` - pass an input command to mplayer (e.g. `pause` or `loadfile /home/me/music/lovely.mp3`)
-- `-f` - apply an effect before (must be the first option) or after any other command.
-	- `fade` - fade volume to a new value, e.g. `-f "fade 5"`
+- `-x` - apply an effect before (must be the first option) or after any other command.
+	- `fade` - fade volume to a new value, e.g. `-x "fade 5"`
 	- `fadeout` - fade volume to 0 over 1 second
 	- `fadein` - fade volume to 25 (default starting volume) over 1 second
 - `-y` - pipe a spoken message into Soundflower, thus the broadcast (excludes all other options)
