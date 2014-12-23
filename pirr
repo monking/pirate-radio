@@ -204,8 +204,7 @@ elif [[ $broadcast = true ]]; then # new brodcast
 	sleep 1
 	start_daemon darkice -v 10 -c "$service_dir/darkice.cfg"
 
-	whisper "checking darkice status"
-	if [[ 0 != $(get_daemon_result darkice) ]]; then
+	if [[ 0 != $(get_daemon_status darkice) ]]; then
 		shout "Make sure that soundflower is running, and is set to be default input and output. Once your broadcast is started, you may want to set your default audio input and output back to the built-in."
 		clean_exit 1
 	fi
@@ -224,17 +223,17 @@ fi
 
 if [[ -n $playlist_option || -n $mplayer_options ]]; then
 
-	mkfifo "$control_file"
-
-	input_options="-slave -quiet -input file=\"$control_file\""
-
-	whisper "starting mplayer as a daemon"
-	mplayer_output="$tmp_dir/mplayer_output"
-	mkfifo "$mplayer_output"
-	start_daemon -o $mplayer_output mplayer $input_options $video_options $audio_options $shuffle_option -loop 0 $playlist_option $mplayer_options
-
 	if [[ $broadcast = true ]]; then
-		clean_exit 0
+		mkfifo "$control_file"
+
+		input_options="-slave -quiet -input file=\"$control_file\""
+
+		whisper "starting mplayer as a daemon"
+		mplayer_output="$tmp_dir/mplayer_output"
+		mkfifo "$mplayer_output"
+		start_daemon -o $mplayer_output mplayer $input_options $video_options $audio_options $shuffle_option -loop 0 $playlist_option $mplayer_options
+	else
+		$mplayer_output mplayer $input_options $video_options $audio_options $shuffle_option -loop 0 $playlist_option $mplayer_options
 	fi
 
 fi
