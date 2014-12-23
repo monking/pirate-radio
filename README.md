@@ -25,32 +25,38 @@ pirr -f fadeout -l newplaylist
 
 ## options
 
+In any mode:
+
 - `-s` - shuffle a playlist. Used only with `-l`, and is forgotten upon
 	subsequent calls with `-l`, unless `-s` is included again.
-- `-v` - the player hides video by default. This allows it to play
 - `-l <playlist>` - load a playlist. If a broadcast is active, the playlist
-	is loaded in the broadcast.
-- `-a` - used with `-l`, appends the loading playlist to the one already playing.
 	is loaded in the broadcast.
 - `-e [<preset or EQ>>]` - set equalizer to a preset or literal value, in the
 	same format as [mplayer's `equalizer` audio filter](http://www.mplayerhq.hu/DOCS/man/en/mplayer.1.html#AUDIO FILTERS).
 
 	presets:
 	- `boom` - `2:8:0:0:0:0:0:0:0:0` (boost the 31.25-62.5 Hz range,  big buttery bass)
+
+Only when starting:
+
 - `-b` - broadcast to icecast on the port set in `.service/icecast.xml`
+- `-S` - make the broadcast sticky, so that it doesn't die when mplayer stops; use with `-b`
+- `-v` - the player hides video by default. This allows it to play
 
-Only when broadcasting:
+Only while a broadcast is active:
 
-- `-y` - pipe a spoken message into Soundflower, thus the broadcast (excludes all other options)
-- `-V` - select a voice to speak in with `-y`. Pass `-V ?` for a list of voices.
-- `-n` `-N` - skip to the next track in the playlist. `-N` for no fadeout.
-- `-p` `-P` - skip to the previous track in the playlist. `-P` for no fadeout.
-- `-q` `-Q` - stop a broadcast. `-Q` for no fadeout
+- `-n` - skip to the next track in the playlist
+- `-p` - skip to the previous track in the playlist
+- `-a` - appends the loading playlist to the one already playing; used with `-l`
+- `-q` - stop a broadcast
 - `-c` - pass an input command to mplayer (e.g. `pause` or `loadfile /home/me/music/lovely.mp3`)
 - `-f` - apply an effect before (must be the first option) or after any other command.
 	- `fade` - fade volume to a new value, e.g. `-f "fade 5"`
 	- `fadeout` - fade volume to 0 over 1 second
 	- `fadein` - fade volume to 25 (default starting volume) over 1 second
+- `-y` - pipe a spoken message into Soundflower, thus the broadcast (excludes all other options)
+- `-V` - select a voice to speak in with `-y`. Pass `-V ?` for a list of voices; used with `-y`
+- `-k <1-9>` - seek to a portion of the video
 
 ## installation
 

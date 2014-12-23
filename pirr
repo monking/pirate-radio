@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+# TODO: improve state (broadcast, playback, remote control of either)
+
 ##
 # utility functions
 ##
@@ -27,7 +29,8 @@ function get_volume() {
 }
 
 function effect_fade() {
-	integer_tween "set_volume %%" $(get_volume) $1
+	volume_before_fade=$(get_volume)
+	integer_tween "set_volume %%" volume_before_fade $1
 }
 
 function effect_fadeout() {
@@ -35,14 +38,22 @@ function effect_fadeout() {
 }
 
 function effect_fadein() {
-	effect_fade $default_volume
+	local target_volume
+
+	[[ -n $volume_before_fade ]] && target_volume=$volume_before_fade || target_volume=$default_volume
+	effect_fade $target_volume
 }
 
-function clean_exit() {
-	echo "exiting cleanly, killing daemons"
+function toggle_sticky() {
+	sticky_file="$service_dir/.sticky"
+	[[ -f $sticky_file ]] && rm $sticky_file || touch $sticky_file
+}
 
-	if [[ $broadcast = true ]]; then
-
+function kill_daemons() {
+	echo "killing daemons"
+	if [[ $broadcast != true && $sticky != true ]]; then # other session, PIDs unknown
+		sudo killall jackd icecast darkice
+	else
 		if [[ -n ${jackd_status[0]} ]]; then
 			kill -HUP ${jackd_status[0]}
 		fi
@@ -54,13 +65,29 @@ function clean_exit() {
 		if [[ -n ${darkice_status[0]} ]]; then
 			kill -HUP ${darkice_status[0]}
 		fi
+	fi
 
-		[[ -a "$control_file" ]] &&  rm -rf "$control_file"
-		[[ -f "$volume_file" ]] &&  rm -rf "$volume_file"
+	[[ -a "$control_file" ]] && rm -rf "$control_file"
+	[[ -f "$volume_file" ]] && rm -rf "$volume_file"
+}
+
+function clean_exit() {
+	local status message
+
+	[[ -z $1 ]] && status=0 || status=$1
+
+	if [[ $broadcast = true ]]; then
+
+		if [[ $status = 0 && $sticky = true ]]; then
+			echo "sticky: keeping radio station running"
+		else
+			kill_daemons
+		fi
 
 	fi
 
-	[[ -z $1 ]] && status=0 || status=$1
+	[[ -n $2 ]] && message=": $message"
+	echo "exiting pirr$message"
 
 	exit $status
 }
@@ -74,27 +101,23 @@ wd="$(pwd)"
 cd "$(dirname $script_path)"
 script_dir="$(pwd)"
 service_dir="$script_dir/.service"
-control_file="$service_dir/mplayercontrol"
-volume_file="$service_dir/mplayervolume"
+control_file="$service_dir/.mplayercontrol"
+volume_file="$service_dir/.mplayervolume"
 default_volume=25
 duck_volume=5
 [[ ! -f $volume_file ]] && set_volume $default_volume
 cd "$wd"
 
-shuffle=
 video_options=-novideo
-audio_filters=
 broadcast=false
 
 eq_boom=2:8:0:0:0:0:0:0:0:0
-
-first_optind=
 
 ##
 # operation
 ##
 
-while getopts "sve:by:V:l:af:c:npqNPQ" flag
+while getopts "sve:by:V:l:af:c:npqSk:" flag
 do
 
 	[[ -z $first_optind ]] && first_optind=$OPTIND
@@ -108,17 +131,15 @@ do
     V ) voice="$OPTARG";;
 		l ) list="$OPTARG";;
 		a ) list_append=true;;
-
-		n ) effect=fadeout; effect_optind=$first_optind; skip=1;    echo "Skipping foward";;
-		p ) effect=fadeout; effect_optind=$first_optind; skip=-1;   echo "Skipping backward";;
-		q ) effect=fadeout; effect_optind=$first_optind; kill=true; echo "Stopping broadcast";;
-
-		N ) skip=1;  echo "Skipping foward";;
-		P ) skip=-1; echo "Skipping backward";;
-		Q ) kill=true;;
+		n ) skip=1;  echo "Skipping foward";;
+		p ) skip=-1; echo "Skipping backward";;
+		q ) kill=true;;
 
 		f ) effect="$OPTARG";effect_optind=$OPTIND;;
 		c ) command="$OPTARG";;
+
+		S ) sticky=true;;
+		k ) seek=$OPTARG;;
   esac
 
 done
@@ -166,9 +187,15 @@ if [[ -a "$control_file" ]]; then # broadcast is already running
 
 	if [[ -n $effect && $effect_optind -eq $first_optind ]]; then effect_$effect; fi
 
-	if [[ -n $skip ]]; then
+	##
+	# playback operations
+	##
 
-		echo "pt_step $skip 1" >> "$control_file"
+	if [[ $kill = true ]]; then
+
+		echo 'quit' >> "$control_file"
+
+		kill_daemons
 
 	elif [[ -n $listpath ]]; then
 
@@ -186,11 +213,21 @@ if [[ -a "$control_file" ]]; then # broadcast is already running
 
 		echo "loadlist '$listpath' $append"  >> "$control_file"
 
-	elif [[ $kill = true ]]; then
+	elif [[ -n $skip ]]; then
 
-		echo 'quit' >> "$control_file"
+		echo "pt_step $skip 1" >> "$control_file"
 
-	elif [[ -n $message ]]; then
+	elif [[ -n $command ]]; then
+
+		echo -e "$command" >> "$control_file"
+
+	fi
+
+	##
+	# other audio input
+	##
+
+	if [[ -n $message ]]; then
 
 		[[ -n $voice ]] && voice_options="-v $voice"
 
@@ -205,10 +242,6 @@ if [[ -a "$control_file" ]]; then # broadcast is already running
 			effect_fade $current_volume
 
 		fi
-
-	elif [[ -n $command ]]; then
-
-		echo -e "$command" >> "$control_file"
 
 	fi
 
@@ -243,10 +276,6 @@ elif [[ $broadcast = true ]]; then # new brodcast
 
 	sleep 1
 
-	mkfifo "$control_file"
-
-	input_options="-slave -input file=\"$control_file\""
-
 fi
 
 if [[ $shuffle = true ]]; then
@@ -258,6 +287,10 @@ if [[ -n $audio_filters ]]; then
 fi
 
 if [[ -n $playlist_option || -n $mplayer_options ]]; then
+
+	mkfifo "$control_file"
+
+	input_options="-slave -input file=\"$control_file\""
 
 	mplayer $input_options $video_options $audio_options $shuffle_option -loop 0 $playlist_option $mplayer_options
 
