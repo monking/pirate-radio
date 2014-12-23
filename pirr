@@ -30,6 +30,7 @@ whisper "functions loaded"
 
 default_volume=25
 duck_volume=5
+mkdir -p "$tmp_dir"
 [[ -f $volume_file ]] || set_volume $default_volume
 
 video_options=-novideo
@@ -74,8 +75,6 @@ done
 whisper "starting pirate radio script"
 
 shift $((OPTIND-1)); OPTIND=1
-
-mkdir -p "$tmp_dir"
 
 if [[ $kill = true ]]; then
 
