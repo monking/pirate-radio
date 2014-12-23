@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-# TODO: improve state (broadcast, playback, remote control of either)
-
 ##
 # environment
 ##
