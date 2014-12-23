@@ -1,14 +1,8 @@
 #!/usr/bin/env bash
 
-wd="$(pwd)"
-[[ -L "$0" ]] && script_path="$(readlink $0)" || script_path="$0"
-cd "$(dirname $script_path)"
-script_dir="$(pwd)"
-service_dir="$script_dir/.service"
-control_file="$service_dir/mplayercontrol"
-default_volume=25
-duck_volume=5
-cd "$wd"
+##
+# utility functions
+##
 
 function integer_tween() {
 	local command from to value i
@@ -23,16 +17,25 @@ function integer_tween() {
 	eval "${command/\%\%/$to}"
 }
 
+function set_volume() {
+	echo "volume $1 1" >> "$control_file"
+	echo $1 > $volume_file
+}
+
+function get_volume() {
+	cat $volume_file
+}
+
 function effect_fade() {
-	integer_tween "echo 'volume %% 1' >> \"$control_file\"" $1 $2
+	integer_tween "set_volume %%" $(get_volume) $1
 }
 
 function effect_fadeout() {
-	effect_fade $default_volume 0
+	effect_fade 0
 }
 
 function effect_fadein() {
-	effect_fade 0 $default_volume
+	effect_fade $default_volume
 }
 
 function clean_exit() {
@@ -54,7 +57,8 @@ function clean_exit() {
 			kill -HUP ${darkice_status[0]}
 		fi
 
-		rm -rf "$control_file"
+		[[ -a "$control_file" ]] &&  rm -rf "$control_file"
+		[[ -f "$volume_file" ]] &&  rm -rf "$volume_file"
 
 	fi
 
@@ -62,6 +66,22 @@ function clean_exit() {
 
 	exit $status
 }
+
+##
+# setup
+##
+
+wd="$(pwd)"
+[[ -L "$0" ]] && script_path="$(readlink $0)" || script_path="$0"
+cd "$(dirname $script_path)"
+script_dir="$(pwd)"
+service_dir="$script_dir/.service"
+control_file="$service_dir/mplayercontrol"
+volume_file="$service_dir/mplayervolume"
+default_volume=25
+duck_volume=5
+[[ ! -f $volume_file ]] && set_volume $default_volume
+cd "$wd"
 
 shuffle=
 video_options=-novideo
@@ -71,6 +91,10 @@ broadcast=false
 eq_boom=2:8:0:0:0:0:0:0:0:0
 
 first_optind=
+
+##
+# operation
+##
 
 while getopts "sve:by:V:l:f:c:npqNPQ" flag
 do
@@ -174,9 +198,9 @@ if [[ -a "$control_file" ]]; then # broadcast is already running
 		else
 
 			echo "Ducking audio and speaking message \"$message\"."
-			effect_fade $default_volume $duck_volume
+			effect_fade $duck_volume
 			say -a $device_id $voice_options "$message"
-			effect_fade $duck_volume $default_volume
+			effect_fade $default_volume
 
 		fi
 

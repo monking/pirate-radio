@@ -31,7 +31,7 @@ pirr -f fadeout -l newplaylist
 - `-l <playlist>` - play from a playlist. If a broadcast is active, this
 	switches out the playlist.
 - `-e [<preset or EQ>>]` - set equalizer to a preset or literal value, in the
-	format that `mplayer -af equalizer=<EQ>` uses.
+	same format as [mplayer's `equalizer` audio filter](http://www.mplayerhq.hu/DOCS/man/en/mplayer.1.html#AUDIO FILTERS).
 
 	presets:
 	- `boom` - `2:8:0:0:0:0:0:0:0:0` (boost the 31.25-62.5 Hz range,  big buttery bass)
@@ -44,25 +44,28 @@ Only when broadcasting:
 - `-n` `-N` - skip to the next track in the playlist. `-N` for no fadeout.
 - `-p` `-P` - skip to the previous track in the playlist. `-P` for no fadeout.
 - `-q` `-Q` - stop a broadcast. `-Q` for no fadeout
-- `-c` - pass an input command to mplayer (e.g. `pause` or `volume 15 1`)
+- `-c` - pass an input command to mplayer (e.g. `pause` or `loadfile /home/me/music/lovely.mp3`)
 - `-f` - apply an effect before (must be the first option) or after any other command.
-	- `fade` - fade volume between two values; use quotes, as `-f "fade <from> <to>". Volume is usually set at 25/100.`
-	- `fadeout` - fade out over 1 second
-	- `fadein` - fade in over 1 second
+	- `fade` - fade volume to a new value, e.g. `-f "fade 5"`
+	- `fadeout` - fade volume to 0 over 1 second
+	- `fadein` - fade volume to 25 (default starting volume) over 1 second
 
 ## installation
 
-- Copy `.service/darkice.default.cfg` to  `.service/darkice.cfg`, and make any changes you need.
-- Copy `.service/icecast.default.xml` to  `.service/icecast.xml`, and make any changes you need.
+- Copy `.service/darkice.default.cfg` to `.service/darkice.cfg`, and make any changes you need.
+- Copy `.service/icecast.default.xml` to `.service/icecast.xml`, and make any changes you need.
 
 ### Mac
 
-- In the command line, do `brew install mplayer jack darkice icecast coreutils`
+- Use [Homebrew](http://brew.sh) to install the following packages
+	```
+	brew install mplayer jack darkice icecast coreutils`
+	```
 	- `mplayer` is the media player
 	- `jack` captures output from soundflower
 	- `darkice` streams from jack to the radio server
 	- `icecast` is the radio server
-	- `coreutils` contains `gshuf`, which is needed for dynamically loading a shuffled playlist
+	- `coreutils` contains `gshuf`, which is needed for shuffling a dynamically loaded playlist
 - Install [Soundflower](https://rogueamoeba.com/freebies/soundflower/)
 
 ## broadcast (currently Mac only)
