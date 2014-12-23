@@ -43,8 +43,6 @@ function clean_exit() {
 
 	if [[ $broadcast = true ]]; then
 
-		# sudo killall jackd icecast darkice
-
 		if [[ -n ${jackd_status[0]} ]]; then
 			kill -HUP ${jackd_status[0]}
 		fi
@@ -96,7 +94,7 @@ first_optind=
 # operation
 ##
 
-while getopts "sve:by:V:l:f:c:npqNPQ" flag
+while getopts "sve:by:V:l:af:c:npqNPQ" flag
 do
 
 	[[ -z $first_optind ]] && first_optind=$OPTIND
@@ -109,6 +107,7 @@ do
 		y ) message="$OPTARG";;
     V ) voice="$OPTARG";;
 		l ) list="$OPTARG";;
+		a ) list_append=true;;
 
 		n ) effect=fadeout; effect_optind=$first_optind; skip=1;    echo "Skipping foward";;
 		p ) effect=fadeout; effect_optind=$first_optind; skip=-1;   echo "Skipping backward";;
@@ -183,7 +182,9 @@ if [[ -a "$control_file" ]]; then # broadcast is already running
 
 		fi
 
-		echo "loadlist '$listpath'"  >> "$control_file"
+		[[ $list_append = true ]] && append=1
+
+		echo "loadlist '$listpath' $append"  >> "$control_file"
 
 	elif [[ $kill = true ]]; then
 

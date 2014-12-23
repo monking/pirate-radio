@@ -28,8 +28,10 @@ pirr -f fadeout -l newplaylist
 - `-s` - shuffle a playlist. Used only with `-l`, and is forgotten upon
 	subsequent calls with `-l`, unless `-s` is included again.
 - `-v` - the player hides video by default. This allows it to play
-- `-l <playlist>` - play from a playlist. If a broadcast is active, this
-	switches out the playlist.
+- `-l <playlist>` - load a playlist. If a broadcast is active, the playlist
+	is loaded in the broadcast.
+- `-a` - used with `-l`, appends the loading playlist to the one already playing.
+	is loaded in the broadcast.
 - `-e [<preset or EQ>>]` - set equalizer to a preset or literal value, in the
 	same format as [mplayer's `equalizer` audio filter](http://www.mplayerhq.hu/DOCS/man/en/mplayer.1.html#AUDIO FILTERS).
 
