@@ -38,32 +38,35 @@ eq_boom=2:8:0:0:0:0:0:0:0:0
 # operation
 ##
 
-while getopts "sve:by:V:l:af:c:npqSk:" flag
+while getopts "sve:by:V:l:af:c:npqSt:" flag
 do
 
 	[[ -z $first_optind ]] && first_optind=$OPTIND
 
   case $flag in
     s ) shuffle=true;;
-    v ) video_options=;;
+    v ) verbose=true;;
 		e ) [[ $OPTARG =~ : ]] && eq="$OPTARG" || eq="$(eval "echo \$eq_$OPTARG")"; [[ -n $eq ]] && audio_filters="$audio_filters equalizer=$eq";;
 		b ) broadcast=true;;
 		y ) message="$OPTARG";;
     V ) voice="$OPTARG";;
 		l ) list="$OPTARG";;
 		a ) list_append=true;;
-		n ) skip=1;  echo "Skipping foward";;
-		p ) skip=-1; echo "Skipping backward";;
-		q ) kill=true;;
+		n ) skip=1;  shout "Skipping foward";;
+		p ) skip=-1; shout "Skipping backward";;
+		k ) kill=true;;
+		q ) quiet=true;;
 
 		f ) effect="$OPTARG";effect_optind=$OPTIND;;
 		c ) command="$OPTARG";;
 
 		S ) sticky=true;;
-		k ) seek=$OPTARG;;
+		t ) seek=$OPTARG;;
   esac
 
 done
+
+whisper "verbose output enabled"
 
 shift $((OPTIND-1)); OPTIND=1
 
@@ -73,11 +76,12 @@ if [[ -n $message || $broadcast = true ]]; then
 	if [[ Darwin = $(uname) ]]; then
 		audio_driver=coreaudio
 		device_id=$(say -a ? | grep 'Soundflower (2ch)' | perl -pe 's/^\s+(\d+).*$/$1/')
+		whisper "audio_driver: $audio_driver, device_id: $device_id"
 	else
 		audio_driver="help"
 		broadcast=false
 		message=
-		echo "-b (broadcast) and -y (say) are currently only supported on Mac"
+		shout "-b (broadcast) and -y (say) are currently only supported on Mac"
 		sleep 1
 	fi
 fi
@@ -89,10 +93,11 @@ if [[ -n $list ]]; then
 		if [[ ! $list =~ "^/" ]]; then # relative path
 			list=${list/.m3u/}
 			listpath=$script_dir/playlists/$list.m3u
+			whisper "resolved $list to $listpath"
 		fi
 
 		if [[ ! -f $listpath ]]; then
-			echo "Playlist '$listpath' doesn't exist. Exiting."
+			shout "Playlist '$listpath' doesn't exist. Exiting."
 			exit 1
 		fi
 
@@ -157,7 +162,7 @@ if [[ -a "$control_file" ]]; then # broadcast is already running
 		else
 
 			current_volume=$(get_volume)
-			echo "Ducking audio and speaking message \"$message\"."
+			shout "Ducking audio and speaking message \"$message\"."
 			effect_fade $duck_volume
 			say -a $device_id $voice_options "$message"
 			effect_fade $current_volume
@@ -176,22 +181,22 @@ elif [[ $broadcast = true ]]; then # new brodcast
 		audio_options="$audio_options:device_id=$device_id"
 	fi
 
-	echo "starting jackd"
+	whisper "starting jackd"
 	jackd -d coreaudio &> /dev/null &
 	jackd_status=($!,$?)
 	sleep 1
 
-	echo "starting icecast"
+	whisper "starting icecast"
 	icecast -c "$service_dir/icecast.xml" &> /dev/null &
 	icecast_status=($! $?)
 	sleep 1
 
-	echo "starting darkice"
+	whisper "starting darkice"
 	darkice -v 10 -c "$service_dir/darkice.cfg" &> /dev/null &
 	darkice_status=($! $?)
 
 	if [[ 0 != ${darkice_status[1]} ]]; then
-		echo "Make sure soundflower is running, and is set to be default input and output. Once the radio is being broadcast, you can set your system default input and output back to the built-in."
+		shout "Make sure soundflower is running, and is set to be default input and output. Once the radio is being broadcast, you can set your system default input and output back to the built-in."
 		clean_exit 1
 	fi
 

@@ -41,14 +41,15 @@ Only when starting:
 
 - `-b` - broadcast to icecast on the port set in `.service/icecast.xml`
 - `-S` - make the broadcast sticky, so that it doesn't die when mplayer stops; use with `-b`
-- `-v` - the player hides video by default. This allows it to play
+- `-v` - verbose output
 
 Only while a broadcast is active:
 
 - `-n` - skip to the next track in the playlist
 - `-p` - skip to the previous track in the playlist
 - `-a` - appends the loading playlist to the one already playing; used with `-l`
-- `-q` - stop a broadcast
+- `-k` - stop a broadcast
+- `-q` - quiet: suppress all output to stdout
 - `-c` - pass an input command to mplayer (e.g. `pause` or `loadfile /home/me/music/lovely.mp3`)
 - `-f` - apply an effect before (must be the first option) or after any other command.
 	- `fade` - fade volume to a new value, e.g. `-f "fade 5"`
@@ -56,7 +57,7 @@ Only while a broadcast is active:
 	- `fadein` - fade volume to 25 (default starting volume) over 1 second
 - `-y` - pipe a spoken message into Soundflower, thus the broadcast (excludes all other options)
 - `-V` - select a voice to speak in with `-y`. Pass `-V ?` for a list of voices; used with `-y`
-- `-k <1-9>` - seek to a portion of the video
+- `-t <1-9>` - seek to a portion of the video
 
 ## installation
 
