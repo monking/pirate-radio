@@ -1,0 +1,85 @@
+function integer_tween() {
+	local command from to value i
+	command=$1
+	from=$2
+	to=$3
+	for i in {1..10}; do
+		value=$((($to-$from)*$i/10+$from))
+		eval "${command/\%\%/$value}"
+		gsleep 0.1
+	done
+	eval "${command/\%\%/$to}"
+}
+
+function set_volume() {
+	echo "volume $1 1" >> "$control_file"
+	echo $1 > $volume_file
+}
+
+function get_volume() {
+	cat $volume_file
+}
+
+function effect_fade() {
+	volume_before_fade=$(get_volume)
+	integer_tween "set_volume %%" volume_before_fade $1
+}
+
+function effect_fadeout() {
+	effect_fade 0
+}
+
+function effect_fadein() {
+	local target_volume
+
+	[[ -n $volume_before_fade ]] && target_volume=$volume_before_fade || target_volume=$default_volume
+	effect_fade $target_volume
+}
+
+function toggle_sticky() {
+	sticky_file="$service_dir/.sticky"
+	[[ -f $sticky_file ]] && rm $sticky_file || touch $sticky_file
+}
+
+function kill_daemons() {
+	echo "killing daemons"
+	if [[ $broadcast != true && $sticky != true ]]; then # other session, PIDs unknown
+		sudo killall jackd icecast darkice
+	else
+		if [[ -n ${jackd_status[0]} ]]; then
+			kill -HUP ${jackd_status[0]}
+		fi
+
+		if [[ -n ${icecast_status[0]} ]]; then
+			kill -HUP ${icecast_status[0]}
+		fi
+
+		if [[ -n ${darkice_status[0]} ]]; then
+			kill -HUP ${darkice_status[0]}
+		fi
+	fi
+
+	[[ -a "$control_file" ]] && rm -rf "$control_file"
+	[[ -f "$volume_file" ]] && rm -rf "$volume_file"
+}
+
+function clean_exit() {
+	local status message
+
+	[[ -z $1 ]] && status=0 || status=$1
+
+	if [[ $broadcast = true ]]; then
+
+		if [[ $status = 0 && $sticky = true ]]; then
+			echo "sticky: keeping radio station running"
+		else
+			kill_daemons
+		fi
+
+	fi
+
+	[[ -n $2 ]] && message=": $message"
+	echo "exiting pirr$message"
+
+	exit $status
+}
