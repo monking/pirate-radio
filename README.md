@@ -84,9 +84,9 @@ This tool was created for personal use on a Mac running OS X 10.9.5. No testing
 has been done on other systems. I intend to make it more portable to other
 POSIX systems, eventually.
 
-## credits
+## thanks
 
-Most of the information that helped me to get this working, and the idea for
-piping in text-to-speech, came from [this
+Most of the information that helped me to get the first version working, and
+the idea for piping in text-to-speech, came from [this
 article](http://dzello.com/blog/2012/11/21/live-stream-audio-from-osx-mountain-lion-with-icecast-and-darkice/)
 by [@dzello](https://github.com/dzello).
