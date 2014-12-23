@@ -198,10 +198,11 @@ if [[ -a "$control_file" ]]; then # broadcast is already running
 			say $voice_options
 		else
 
+			current_volume=$(get_volume)
 			echo "Ducking audio and speaking message \"$message\"."
 			effect_fade $duck_volume
 			say -a $device_id $voice_options "$message"
-			effect_fade $default_volume
+			effect_fade $current_volume
 
 		fi
 
