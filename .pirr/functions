@@ -21,7 +21,7 @@ function integer_tween() {
 }
 
 function set_volume() {
-	echo "volume $1 1" >> "$control_file"
+	[[ -a "$control_file" ]] && echo "volume $1 1" >> "$control_file"
 	echo $1 > $volume_file
 }
 
@@ -50,14 +50,44 @@ function toggle_sticky() {
 	[[ -f $sticky_file ]] && rm $sticky_file || touch $sticky_file
 }
 
+start_daemon() {
+	local name
+	name=$1
+	shift 1
+	options=$@
+	whisper "starting daemon: $name, options: $options"
+	$name $options &> /dev/null &
+	eval "status_${name}=($!,$?)"
+}
+
+get_daemon_pid() {
+	echo $(eval "\${status_$1[0]}")
+}
+
+get_daemon_result() {
+	echo $(eval "\${status_$1[1]}")
+}
+
+kill_daemon() {
+	name=$1
+	pid=$(get_daemon_pid $name)
+	if [[ -n $pid ]]; then
+		whisper "killing daemon $name, (PID $pid)"
+		kill -HUP $pid
+	else
+		whisper "no known PID for daemon $name, doing sudo killall $name"
+		sudo killall $name
+	fi
+}
+
 function kill_daemons() {
 	echo "killing daemons"
 	if [[ $broadcast != true && $sticky != true ]]; then # other session, PIDs unknown
 		sudo killall jackd icecast darkice
 	else
-		if [[ -n ${jackd_status[0]} ]]; then
-			kill -HUP ${jackd_status[0]}
-		fi
+		kill_daemon jackd
+		kill_daemon icecast
+		kill_daemon darkice
 
 		if [[ -n ${icecast_status[0]} ]]; then
 			kill -HUP ${icecast_status[0]}

@@ -38,7 +38,7 @@ eq_boom=2:8:0:0:0:0:0:0:0:0
 # operation
 ##
 
-while getopts "sve:by:V:l:af:c:npqSt:" flag
+while getopts "sve:by:V:l:anpkqf:c:St:" flag
 do
 
 	[[ -z $first_optind ]] && first_optind=$OPTIND
@@ -98,7 +98,7 @@ if [[ -n $list ]]; then
 
 		if [[ ! -f $listpath ]]; then
 			shout "Playlist '$listpath' doesn't exist. Exiting."
-			exit 1
+			clean_exit 1
 		fi
 
 	fi
@@ -107,7 +107,9 @@ if [[ -n $list ]]; then
 
 fi
 
-if [[ -a "$control_file" ]]; then # broadcast is already running
+if [[ -a "$control_file" ]]; then
+
+	whisper "broadcast is already running"
 
 	playlist_option= # unset playlist option: do not start up a new player
 
@@ -119,6 +121,8 @@ if [[ -a "$control_file" ]]; then # broadcast is already running
 
 	if [[ $kill = true ]]; then
 
+		whisper "sending to mplayer: quit"
+
 		echo 'quit' >> "$control_file"
 
 		kill_daemons # FIXME: check if they need to be killed first
@@ -128,6 +132,8 @@ if [[ -a "$control_file" ]]; then # broadcast is already running
 		if [[ $shuffle = true ]]; then
 
 			new_listpath="$service_dir/tmp_playlist.m3u"
+
+			whisper "shuffling list into $new_listpath"
 
 			cat "$listpath" | gshuf > "$new_listpath"
 
@@ -141,9 +147,13 @@ if [[ -a "$control_file" ]]; then # broadcast is already running
 
 	elif [[ -n $skip ]]; then
 
+		whisper "skipping: $skip"
+
 		echo "pt_step $skip 1" >> "$control_file"
 
 	elif [[ -n $command ]]; then
+
+		whisper "sending to mplayer: $command"
 
 		echo -e "$command" >> "$control_file"
 
@@ -158,15 +168,14 @@ if [[ -a "$control_file" ]]; then # broadcast is already running
 		[[ -n $voice ]] && voice_options="-v $voice"
 
 		if [[ ? = $voice ]]; then
+			whisper "listing voices"
 			say $voice_options
 		else
-
 			current_volume=$(get_volume)
 			shout "Ducking audio and speaking message \"$message\"."
 			effect_fade $duck_volume
 			say -a $device_id $voice_options "$message"
 			effect_fade $current_volume
-
 		fi
 
 	fi
@@ -181,21 +190,13 @@ elif [[ $broadcast = true ]]; then # new brodcast
 		audio_options="$audio_options:device_id=$device_id"
 	fi
 
-	whisper "starting jackd"
-	jackd -d coreaudio &> /dev/null &
-	jackd_status=($!,$?)
+	start_daemon jackd -d coreaudio
 	sleep 1
-
-	whisper "starting icecast"
-	icecast -c "$service_dir/icecast.xml" &> /dev/null &
-	icecast_status=($! $?)
+	start_daemon icecast -c "$service_dir/icecast.xml"
 	sleep 1
+	start_daemon darkice -v 10 -c "$service_dir/darkice.cfg"
 
-	whisper "starting darkice"
-	darkice -v 10 -c "$service_dir/darkice.cfg" &> /dev/null &
-	darkice_status=($! $?)
-
-	if [[ 0 != ${darkice_status[1]} ]]; then
+	if [[ 0 != $(get_daemon_result darkice) ]]; then
 		shout "Make sure soundflower is running, and is set to be default input and output. Once the radio is being broadcast, you can set your system default input and output back to the built-in."
 		clean_exit 1
 	fi
