@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
 function shout() {
-	[[ $quiet != true ]] && echo $@
+	[[ $quiet != true ]] && echo $@ >> /dev/stderr
 }
 function whisper() {
-	[[ $verbose = true ]] && echo $@
+	[[ $verbose = true ]] && echo $@ >> /dev/stderr
 }
 
 function integer_tween() {
@@ -30,15 +30,18 @@ function get_volume() {
 }
 
 function effect_fade() {
+	whisper "effect_fade $@"
 	volume_before_fade=$(get_volume)
 	integer_tween "set_volume %%" volume_before_fade $1
 }
 
 function effect_fadeout() {
+	whisper "effect_fadeout $@"
 	effect_fade 0
 }
 
 function effect_fadein() {
+	whisper "effect_fadein $@"
 	local target_volume
 
 	[[ -n $volume_before_fade ]] && target_volume=$volume_before_fade || target_volume=$default_volume
@@ -133,4 +136,69 @@ function clean_exit() {
 	echo "exiting pirr$message"
 
 	exit $status
+}
+
+function get_queue_length() {
+	local name length
+	name=$1
+	length=$(eval "echo \${#queue_$name[@]}")
+	echo $length
+}
+
+function advance_queue() {
+	local name message
+	name=$1
+	shift 1
+	message="$@"
+
+	action="$(pop_queue $name)"
+
+	function_with_args="${name}_${action}"
+	function=${function_with_args/ */}
+	if [[ $(type -t $function) = function ]]; then
+		if [[ -n $message ]]; then
+			whisper "${message/\{\}/$value}"
+		fi
+		$function_with_args
+	else
+		whisper "no function: $function_with_args"
+	fi
+}
+
+function enqueue_method() {
+	local name action
+	name=$1
+	shift 1
+	action="$@"
+	if [[ $(get_queue_length $name) -le 0 ]]; then # queue doesn't exist
+		eval "queue_${name}=()"
+	fi
+	eval "queue_${name}+=(\"$action\")"
+	whisper "enqueue $name '$@' ($(get_queue_length $name) in queue)"
+}
+
+function pop_queue() {
+	local name value
+	name="$1"
+
+	if [[ $(get_queue_length $name) -gt 0 ]]; then
+
+		# store the first item
+		value="$(eval "echo \${queue_$name[0]}")"
+
+		# remove the first item from the list
+		eval "queue_${name}=(\"\${queue_${name}[@]:1}\")"
+
+		echo "$value"
+	fi
+}
+
+function purge_queue() {
+	local name message
+	name=$1
+	shift 1
+	messsage="$@"
+	while [[ $(get_queue_length $name) -gt 0 ]]; do
+		advance_queue $name "$messsage"
+	done
 }

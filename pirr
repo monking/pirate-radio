@@ -40,6 +40,9 @@ eq_boom=2:8:0:0:0:0:0:0:0:0
 # operation
 ##
 
+# effect=()
+# effect_optind=()
+
 while getopts "sve:by:V:l:anpkqx:c:St:i" flag
 do
 
@@ -59,7 +62,8 @@ do
 		k ) kill=true;;
 		q ) quiet=true;;
 
-		x ) effect="$OPTARG";effect_optind=$OPTIND;;
+		x ) enqueue_method effect "$OPTARG";;
+
 		c ) command="$OPTARG";;
 
 		S ) sticky=true;;
@@ -138,10 +142,7 @@ if [[ -a "$control_file" ]]; then
 
 	playlist_option= # unset playlist option: do not start up a new player
 
-	if [[ -n $effect && $effect_optind -eq $first_optind ]]; then
-		whisper "doing effect FIRST $effect"
-		effect_$effect
-	fi
+	advance_queue effect "FIRST effect {}"
 
 	##
 	# playback operations
@@ -186,18 +187,13 @@ if [[ -a "$control_file" ]]; then
 			say $voice_options
 		else
 			current_volume=$(get_volume)
-			shout "Ducking audio and speaking message \"$message\"."
-			effect_fade $duck_volume
+			shout "speaking message \"$message\"."
 			say -a $device_id $voice_options "$message"
-			effect_fade $current_volume
 		fi
 
 	fi
 
-	if [[ -n $effect && $effect_optind -gt $first_optind ]]; then
-		whisper "doing effect LAST $effect"
-		effect_$effect
-	fi
+	purge_queue effect "REMAINING effect {}"
 
 elif [[ $broadcast = true ]]; then # new brodcast
 
