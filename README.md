@@ -59,7 +59,7 @@ Only while a broadcast is active:
 - `-y` - pipe a spoken message into Soundflower, thus the broadcast (excludes all other options)
 - `-V` - select a voice to speak in with `-y`. Pass `-V ?` for a list of voices; used with `-y`
 - `-t <1-9>` - seek to a portion of the video
-- `-F` - show file information
+- `-i` - show file information
 
 ## installation
 
