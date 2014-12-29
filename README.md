@@ -59,6 +59,7 @@ Only while a broadcast is active:
 - `-y` - pipe a spoken message into Soundflower, thus the broadcast (excludes all other options)
 - `-V` - select a voice to speak in with `-y`. Pass `-V ?` for a list of voices; used with `-y`
 - `-t <1-9>` - seek to a portion of the video
+- `-F` - show file information
 
 ## installation
 
@@ -75,7 +76,9 @@ Only while a broadcast is active:
 	- `jack` captures output from soundflower
 	- `darkice` streams from jack to the radio server
 	- `icecast` is the radio server
-	- `coreutils` contains `gshuf`, which is needed for shuffling a dynamically loaded playlist
+	- **optional** `coreutils` contains `gshuf`, which is needed for shuffling a dynamically loaded playlist
+	- **optional** `id3lib` contains `id3info`, which shows mp3 meta information
+	- **optional** `mp4v2` contains `mp4info`, which shows m4a (AAC) meta information
 - Install [Soundflower](https://rogueamoeba.com/freebies/soundflower/)
 
 ## broadcast (currently Mac only)

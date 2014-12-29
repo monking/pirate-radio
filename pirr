@@ -40,7 +40,7 @@ eq_boom=2:8:0:0:0:0:0:0:0:0
 # operation
 ##
 
-while getopts "sve:by:V:l:anpkqx:c:St:f" flag
+while getopts "sve:by:V:l:anpkqx:c:St:F" flag
 do
 
 	[[ -z $first_optind ]] && first_optind=$OPTIND
@@ -65,7 +65,7 @@ do
 		S ) sticky=true;;
 		t ) seek=$OPTARG;;
 
-		f ) force=true;;
+		F ) getfilename=true;;
   esac
 
 done
@@ -121,6 +121,20 @@ fi
 if [[ -a "$control_file" ]]; then
 
 	whisper "using existing broadcast"
+
+	if [[ $getfilename = true ]]; then
+		filename="$(lsof -p $(cat $tmp_dir/pid_mplayer) | grep '\<5r\>' | perl -pe 's/^[^\/]+//')"
+		# FIXME: "5r" shows up in my `lsof` output, not sure why it's always the file
+		echo -en "\n"
+		shout "$(basename "$filename")"
+		whisper "$filename"
+		if [[ "$filename" =~ mp3$ ]]; then
+			id3info "$filename"
+		elif [[ "$filename" =~ m4a$ ]]; then
+			mp4info "$filename"
+		fi
+		echo -en "\n"
+	fi
 
 	playlist_option= # unset playlist option: do not start up a new player
 
