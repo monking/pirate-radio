@@ -5,8 +5,8 @@
 ##
 
 wd="$(pwd)"
-[[ -L "$0" ]] && script_path="$(readlink $0)" || script_path="$0"
-cd "$(dirname "$script_path")"
+[[ -L "$0" ]] && script_path="$(readlink "$0")" || script_path="$0"
+cd "$(dirname $0)/$(dirname "$script_path")"
 script_dir="$(pwd)"
 cd "$wd"
 
@@ -14,6 +14,8 @@ service_dir="$wd/.pirr"
 if [[ ! -d "$service_dir" ]]; then
 	service_dir="$script_dir/.pirr"
 fi
+
+. "$service_dir/config.sh"
 
 tmp_dir="$service_dir/tmp"
 control_file="$tmp_dir/mplayercontrol"
@@ -311,7 +313,7 @@ if [[ -n $list ]]; then
 
 		if [[ ! $list =~ "^/" ]]; then # relative path
 			list=${list/.m3u/}
-			listpath=$script_dir/playlists/$list.m3u
+			listpath="$default_playlist_dir/$list.m3u"
 			whisper "resolved $list to $listpath"
 		fi
 

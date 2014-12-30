@@ -63,8 +63,9 @@ Only while a broadcast is active:
 
 ## installation
 
-- Copy `.service/darkice.default.cfg` to `.service/darkice.cfg`, and make any changes you need.
-- Copy `.service/icecast.default.xml` to `.service/icecast.xml`, and make any changes you need.
+- Copy `.pirr/darkice.default.cfg` to `.pirr/darkice.cfg`, and make any changes you need.
+- Copy `.pirr/icecast.default.xml` to `.pirr/icecast.xml`, and make any changes you need.
+- Copy `.pirr/config.default.sh` to `.pirr/config.sh`, and make any changes you need.
 
 ### Mac
 
