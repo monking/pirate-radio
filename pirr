@@ -164,10 +164,7 @@ function clean_exit() {
 }
 
 function get_queue_length() {
-	local name length
-	name=$1
-	length=$(eval "echo \${#queue_$name[@]}")
-	echo $length
+	echo $(eval "echo \${#queue_$1[@]}")
 }
 
 function advance_queue() {
@@ -176,7 +173,14 @@ function advance_queue() {
 	shift 1
 	message="$@"
 
+	if [[ $(get_queue_length $name) -le 0 ]]; then
+		echo "queue $name is empty"
+		return 0
+	fi
+
 	action="$(pop_queue $name)"
+
+	whisper "$name ($(get_queue_length $name) remaining in queue)"
 
 	function_with_args="${name}_${action}"
 	function=${function_with_args/ */}
@@ -205,6 +209,8 @@ function enqueue_method() {
 function pop_queue() {
 	local name value
 	name="$1"
+
+	whisper "queue $name has $(get_queue_length $name) items"
 
 	if [[ $(get_queue_length $name) -gt 0 ]]; then
 
