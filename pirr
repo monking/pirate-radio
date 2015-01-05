@@ -70,7 +70,7 @@ do
 
 done
 
-whisper "starting pirate radio script"
+whisper "begin pirate radio operation"
 
 shift $((OPTIND-1)); OPTIND=1
 
@@ -87,7 +87,11 @@ if [[ -n $message || $broadcast = true ]]; then
 	if [[ Darwin = $(uname) ]]; then
 		audio_driver=coreaudio
 		device_id=$(say -a ? | grep 'Soundflower (2ch)' | perl -pe 's/^\s+(\d+).*$/$1/')
-		whisper "audio_driver: $audio_driver, device_id: $device_id"
+		if [[ -n $device_id ]]; then
+			whisper "audio_driver: $audio_driver, device_id: $device_id"
+		else
+			shout "No 'Soundflower (2ch)' listed in your audio devices. See README.md for instructions to install Soundflower."
+		fi
 	else
 		audio_driver="help"
 		broadcast=false
@@ -209,6 +213,20 @@ elif [[ $broadcast = true ]]; then # new brodcast
 		audio_options="$audio_options:device_id=$device_id"
 	fi
 
+	ad_script="$service_dir/lib/audiodevice/audiodevice"
+
+	current_input="$($ad_script input)"
+	current_output="$($ad_script output)"
+
+	new_input="Soundflower (2ch)"
+	new_output="Soundflower (2ch)"
+
+	$ad_script input "$new_input"
+	$ad_script output "$new_output"
+
+	whisper "current_input: $current_input"
+	whisper "current_output: $current_output"
+
 	whisper "starting daemons for broadcast"
 	start_daemon jackd -d coreaudio
 	sleep 1
@@ -216,8 +234,11 @@ elif [[ $broadcast = true ]]; then # new brodcast
 	sleep 1
 	start_daemon darkice -v 10 -c "$service_dir/darkice.cfg"
 
+	$ad_script input "$current_input"
+	$ad_script output "$current_output"
+
 	if [[ 0 != $(get_daemon_status darkice) ]]; then
-		shout "Make sure that soundflower is running, and is set to be default input and output. Once your broadcast is started, you may want to set your default audio input and output back to the built-in."
+		shout "Soundflower is unavailable."
 		clean_exit 1
 	fi
 
@@ -249,4 +270,4 @@ if [[ -n $playlist_option || -n $mplayer_options ]]; then
 	fi
 
 fi
-whisper "ending pirate radio script"
+whisper "end pirate radio operation"
