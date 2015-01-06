@@ -18,8 +18,8 @@ fi
 . "$service_dir/config.sh"
 
 tmp_dir="$service_dir/tmp"
-control_file="$tmp_dir/mplayercontrol"
-volume_file="$tmp_dir/mplayervolume"
+control_file="$tmp_dir/mplayer_input"
+volume_file="$tmp_dir/mplayer_volume"
 
 ##
 # utility functions
@@ -45,8 +45,12 @@ function integer_tween() {
 	eval "${command/\%\%/$to}"
 }
 
+function mplayer_command() {
+	[[ -a "$control_file" ]] && echo "$@" >> "$control_file"
+}
+
 function set_volume() {
-	[[ -a "$control_file" ]] && echo "volume $1 1" >> "$control_file"
+	mplayer_command "volume $1 1"
 	echo $1 > $volume_file
 }
 
@@ -78,7 +82,7 @@ function toggle_sticky() {
 	[[ -f $sticky_file ]] && rm $sticky_file || touch $sticky_file
 }
 
-start_daemon() {
+function start_daemon() {
 	local name options status pid_file output
 
 	if [[ $1 = '-o' ]]; then
@@ -102,14 +106,14 @@ start_daemon() {
 	eval "echo \${status_$name[0]} > \"$pid_file\""
 }
 
-get_daemon_status() {
+function get_daemon_status() {
 	local name
 	name=$1
 	status=$(eval "echo \${status_$name[1]}")
 	echo $status
 }
 
-kill_daemon() {
+function kill_daemon() {
 	local name pid_file pid
 	name=$1
 	pid_file="$tmp_dir/pid_$name"
@@ -246,6 +250,7 @@ mkdir -p "$tmp_dir"
 video_options=-novideo
 broadcast=false
 
+eq_flat=0:0:0:0:0:0:0:0:0:0
 eq_boom=2:8:0:0:0:0:0:0:0:0
 
 ##
@@ -371,17 +376,17 @@ if [[ -a "$control_file" ]]; then
 
 		whisper "dynamically loading list $listpath"
 		[[ $list_append = true ]] && append=1
-		echo "loadlist '$listpath' $append"  >> "$control_file"
+		mplayer_command "loadlist '$listpath' $append"
 
 	elif [[ -n $skip ]]; then
 
 		whisper "skipping: $skip"
-		echo "pt_step $skip 1" >> "$control_file"
+		mplayer_command "pt_step $skip 1"
 
 	elif [[ -n $command ]]; then
 
 		whisper "sending to mplayer: $command"
-		echo -e "$command" >> "$control_file"
+		mplayer_command -e "$command"
 
 	fi
 
@@ -391,7 +396,7 @@ if [[ -a "$control_file" ]]; then
 
 	if [[ -n $message ]]; then
 
-		whisper "preparing to speak message"
+		whisper "preparing to speak to device $device_id"
 		[[ -n $voice ]] && voice_options="-v $voice"
 
 		if [[ ? = $voice ]]; then
@@ -399,8 +404,7 @@ if [[ -a "$control_file" ]]; then
 			say $voice_options
 		else
 			current_volume=$(get_volume)
-			shout "speaking message \"$message\"."
-			say -a $device_id $voice_options "$message"
+			say -ia $device_id $voice_options "$message"
 		fi
 
 	fi
@@ -453,7 +457,9 @@ if [[ -n $playlist_option || -n $mplayer_options ]]; then
 		mkfifo "$mplayer_output"
 		start_daemon -o $mplayer_output mplayer $input_options $video_options $audio_options $shuffle_option -loop 0 $playlist_option $mplayer_options
 	else
-		$mplayer_output mplayer $input_options $video_options $audio_options $shuffle_option -loop 0 $playlist_option $mplayer_options
+		whisper "starting mplayer normally\n"
+		whisper "  mplayer $input_options $video_options $audio_options $shuffle_option -loop 0 $playlist_option $mplayer_options"
+		mplayer $input_options $video_options $audio_options $shuffle_option -loop 0 $playlist_option $mplayer_options
 	fi
 
 fi
