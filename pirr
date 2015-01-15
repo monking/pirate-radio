@@ -1,27 +1,6 @@
 #!/usr/bin/env bash
 
 ##
-# environment
-##
-
-wd="$(pwd)"
-[[ -L "$0" ]] && script_path="$(readlink "$0")" || script_path="$0"
-cd "$(dirname $0)/$(dirname "$script_path")"
-script_dir="$(pwd)"
-cd "$wd"
-
-service_dir="$wd/.pirr"
-if [[ ! -d "$service_dir" ]]; then
-	service_dir="$script_dir/.pirr"
-fi
-
-. "$service_dir/config.sh"
-
-tmp_dir="$service_dir/tmp"
-control_file="$tmp_dir/mplayer_input"
-volume_file="$tmp_dir/mplayer_volume"
-
-##
 # utility functions
 ##
 
@@ -29,7 +8,7 @@ function shout() {
 	[[ $quiet != true ]] && echo $@ >> /dev/stderr
 }
 function whisper() {
-	[[ $verbose = true ]] && echo $@ >> /dev/stderr
+	[[ $verbose = true ]] && shout $@
 }
 
 function integer_tween() {
@@ -264,6 +243,35 @@ function download_youtube_playlist() {
 }
 
 ##
+# environment
+##
+
+wd="$(pwd)"
+cd "$(dirname $0)"
+script_dir="$(pwd)"
+script_path="$script_dir/$(basename $0)"
+while [[ -L "$script_path" ]]; do
+	script_path="$(readlink "$script_path")"
+	cd "$(dirname "$script_path")"
+	script_dir="$(pwd)"
+	script_path="$script_dir/$(basename $script_path)"
+done
+cd "$wd"
+
+service_dir="$wd/.pirr"
+if [[ ! -d "$service_dir" ]]; then
+	service_dir="$script_dir/.pirr"
+fi
+
+config_path="$service_dir/config.sh"
+
+. "$config_path"
+
+tmp_dir="$service_dir/tmp"
+control_file="$tmp_dir/mplayer_input"
+volume_file="$tmp_dir/mplayer_volume"
+
+##
 # setup
 ##
 
@@ -320,6 +328,7 @@ do
 done
 
 whisper "starting pirate radio script"
+whisper "using config $config_path"
 
 shift $((OPTIND-1)); OPTIND=1
 
