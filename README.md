@@ -61,6 +61,7 @@ Only while a broadcast is active:
 - `-t <1-9>` - seek to a portion of the video
 - `-i` - show file information
 - `-Y <YouTube URL>` - download a video or playlist from YouTube, and create a new playlist `-l`.
+- `-I` - Interactive mode: use mplayer normally; still controllable by `-x` and `-c` later.
 
 ## installation
 

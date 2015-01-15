@@ -285,7 +285,7 @@ eq_boom=2:8:0:0:0:0:0:0:0:0
 # effect=()
 # effect_optind=()
 
-while getopts "sve:by:V:l:anpkqx:c:St:iY:" flag
+while getopts "sve:by:V:l:anpkqx:c:St:iY:I" flag
 do
 
 	[[ -z $first_optind ]] && first_optind=$OPTIND
@@ -312,6 +312,7 @@ do
 		t ) seek=$OPTARG;;
 
 		i ) showinfo=true;;
+		I ) interactive=true;;
 
 		Y ) download_youtube_url=$OPTARG;;
   esac
@@ -481,19 +482,19 @@ fi
 
 if [[ -n $playlist_option || -n $mplayer_options ]]; then
 
-	if [[ $broadcast = true ]]; then
-		mkfifo "$control_file"
+	mkfifo "$control_file"
+	input_options="-input file=\"$control_file\""
 
-		input_options="-slave -quiet -input file=\"$control_file\""
-
-		whisper "starting mplayer as a daemon"
-		mplayer_output="$tmp_dir/mplayer_output"
-		mkfifo "$mplayer_output"
-		start_daemon -o $mplayer_output mplayer $input_options $video_options $audio_options $shuffle_option -loop 0 $playlist_option $mplayer_options
-	else
+	if [[ $interactive = true ]]; then
 		whisper "starting mplayer normally\n"
 		whisper "  mplayer $input_options $video_options $audio_options $shuffle_option -loop 0 $playlist_option $mplayer_options"
 		mplayer $input_options $video_options $audio_options $shuffle_option -loop 0 $playlist_option $mplayer_options
+	else
+		whisper "starting mplayer as a daemon"
+		input_options="-slave -quiet $input_options"
+		mplayer_output="$tmp_dir/mplayer_output"
+		mkfifo "$mplayer_output"
+		start_daemon -o $mplayer_output mplayer $input_options $video_options $audio_options $shuffle_option -loop 0 $playlist_option $mplayer_options
 	fi
 
 fi
