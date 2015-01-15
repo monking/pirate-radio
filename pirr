@@ -312,6 +312,8 @@ do
 		t ) seek=$OPTARG;;
 
 		i ) showinfo=true;;
+
+		Y ) download_youtube_url=$OPTARG;;
   esac
 
 done
