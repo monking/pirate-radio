@@ -5,22 +5,238 @@
 ##
 
 wd="$(pwd)"
-[[ -L "$0" ]] && script_path="$(readlink $0)" || script_path="$0"
-cd "$(dirname $script_path)"
+[[ -L "$0" ]] && script_path="$(readlink "$0")" || script_path="$0"
+cd "$(dirname $0)/$(dirname "$script_path")"
 script_dir="$(pwd)"
 cd "$wd"
-service_dir="$script_dir/.pirr"
+
+service_dir="$wd/.pirr"
+if [[ ! -d "$service_dir" ]]; then
+	service_dir="$script_dir/.pirr"
+fi
+
+. "$service_dir/config.sh"
+
 tmp_dir="$service_dir/tmp"
-control_file="$tmp_dir/mplayercontrol"
-volume_file="$tmp_dir/mplayervolume"
+control_file="$tmp_dir/mplayer_input"
+volume_file="$tmp_dir/mplayer_volume"
 
 ##
 # utility functions
 ##
 
-. $service_dir/functions
+function shout() {
+	[[ $quiet != true ]] && echo $@ >> /dev/stderr
+}
+function whisper() {
+	[[ $verbose = true ]] && echo $@ >> /dev/stderr
+}
 
-whisper "functions loaded"
+function integer_tween() {
+	local command from to value i
+	command=$1
+	from=$2
+	to=$3
+	for i in {1..10}; do
+		value=$((($to-$from)*$i/10+$from))
+		eval "${command/\%\%/$value}"
+		gsleep 0.1
+	done
+	eval "${command/\%\%/$to}"
+}
+
+function mplayer_command() {
+	[[ -a "$control_file" ]] && echo "$@" >> "$control_file"
+}
+
+function set_volume() {
+	mplayer_command "volume $1 1"
+	echo $1 > $volume_file
+}
+
+function get_volume() {
+	cat $volume_file
+}
+
+function effect_fade() {
+	whisper "effect_fade $@"
+	volume_before_fade=$(get_volume)
+	integer_tween "set_volume %%" volume_before_fade $1
+}
+
+function effect_fadeout() {
+	whisper "effect_fadeout $@"
+	effect_fade 0
+}
+
+function effect_fadein() {
+	whisper "effect_fadein $@"
+	local target_volume
+
+	[[ -n $volume_before_fade ]] && target_volume=$volume_before_fade || target_volume=$default_volume
+	effect_fade $target_volume
+}
+
+function toggle_sticky() {
+	sticky_file="$tmp_dir/.sticky"
+	[[ -f $sticky_file ]] && rm $sticky_file || touch $sticky_file
+}
+
+function start_daemon() {
+	local name options status pid_file output
+
+	if [[ $1 = '-o' ]]; then
+		output_file="$2"
+		shift 2
+	fi
+
+	name=$1
+	shift 1
+	options=("$@")
+	whisper "starting daemon: $name, ${#options} options"
+
+	pid_file="$tmp_dir/pid_$name"
+	# output="$tmp_dir/fifo_$name"
+	# mkfifo "$output"
+	output="/dev/null"
+
+	$name ${options[@]} &> /dev/null &
+
+	eval "status_$name=($! $?)"
+	eval "echo \${status_$name[0]} > \"$pid_file\""
+}
+
+function get_daemon_status() {
+	local name
+	name=$1
+	status=$(eval "echo \${status_$name[1]}")
+	echo $status
+}
+
+function kill_daemon() {
+	local name pid_file pid
+	name=$1
+	pid_file="$tmp_dir/pid_$name"
+	if [[ -f $pid_file ]]; then
+		pid=$(cat "$pid_file")
+		whisper "killing daemon $name, (PID $pid)"
+		kill -HUP $pid
+		rm "$pid_file"
+	else
+		whisper "no known process $name"
+	fi
+}
+
+function kill_daemons() {
+	local process_notes basename name
+
+	process_notes=$(ls -1 "$tmp_dir/pid_"*)
+	if [[ -z $process_notes ]]; then
+		whisper "no daemons to kill"
+	else
+		whisper "killing daemons"
+		for note in $process_notes; do
+			basename="$(basename "$note")"
+			name="${basename/pid_/}"
+			kill_daemon $name
+		done
+	fi
+
+	[[ -a "$control_file" ]] && rm -rf "$control_file"
+	[[ -f "$volume_file" ]] && rm -rf "$volume_file"
+}
+
+function clean_exit() {
+	local status message
+
+	[[ -z $1 ]] && status=0 || status=$1
+
+	if [[ $broadcast = true ]]; then
+
+		if [[ $status = 0 && $sticky = true ]]; then
+			echo "sticky: keeping radio station running"
+		else
+			kill_daemons
+		fi
+
+	fi
+
+	[[ -n $2 ]] && message=": $message"
+	echo "exiting pirr$message"
+
+	exit $status
+}
+
+function get_queue_length() {
+	echo $(eval "echo \${#queue_$1[@]}")
+}
+
+function advance_queue() {
+	local name message
+	name=$1
+	shift 1
+	message="$@"
+
+	if [[ $(get_queue_length $name) -le 0 ]]; then
+		echo "queue $name is empty"
+		return 0
+	fi
+
+	action="$(pop_queue $name)"
+
+	whisper "$name ($(get_queue_length $name) remaining in queue)"
+
+	function_with_args="${name}_${action}"
+	function=${function_with_args/ */}
+	if [[ $(type -t $function) = function ]]; then
+		if [[ -n $message ]]; then
+			whisper "${message/\{\}/$value}"
+		fi
+		$function_with_args
+	else
+		whisper "no function: $function_with_args"
+	fi
+}
+
+function enqueue_method() {
+	local name action
+	name=$1
+	shift 1
+	action="$@"
+	if [[ $(get_queue_length $name) -le 0 ]]; then # queue doesn't exist
+		eval "queue_${name}=()"
+	fi
+	eval "queue_${name}+=(\"$action\")"
+	whisper "enqueue $name '$@' ($(get_queue_length $name) in queue)"
+}
+
+function pop_queue() {
+	local name value
+	name="$1"
+
+	whisper "queue $name has $(get_queue_length $name) items"
+
+	if [[ $(get_queue_length $name) -gt 0 ]]; then
+
+		# store the first item
+		value="$(eval "echo \${queue_$name[0]}")"
+
+		# remove the first item from the list
+		eval "queue_${name}=(\"\${queue_${name}[@]:1}\")"
+
+		echo "$value"
+	fi
+}
+
+function purge_queue() {
+	local name message
+	name=$1
+	shift 1
+	messsage="$@"
+	while [[ $(get_queue_length $name) -gt 0 ]]; do
+		advance_queue $name "$messsage"
+	done
+}
 
 ##
 # setup
@@ -34,11 +250,15 @@ mkdir -p "$tmp_dir"
 video_options=-novideo
 broadcast=false
 
+eq_flat=0:0:0:0:0:0:0:0:0:0
 eq_boom=2:8:0:0:0:0:0:0:0:0
 
 ##
 # operation
 ##
+
+# effect=()
+# effect_optind=()
 
 while getopts "sve:by:V:l:anpkqx:c:St:i" flag
 do
@@ -59,7 +279,8 @@ do
 		k ) kill=true;;
 		q ) quiet=true;;
 
-		x ) effect="$OPTARG";effect_optind=$OPTIND;;
+		x ) enqueue_method effect "$OPTARG";;
+
 		c ) command="$OPTARG";;
 
 		S ) sticky=true;;
@@ -107,7 +328,7 @@ if [[ -n $list ]]; then
 
 		if [[ ! $list =~ "^/" ]]; then # relative path
 			list=${list/.m3u/}
-			listpath=$script_dir/playlists/$list.m3u
+			listpath="$default_playlist_dir/$list.m3u"
 			whisper "resolved $list to $listpath"
 		fi
 
@@ -142,10 +363,7 @@ if [[ -a "$control_file" ]]; then
 
 	playlist_option= # unset playlist option: do not start up a new player
 
-	if [[ -n $effect && $effect_optind -eq $first_optind ]]; then
-		whisper "doing effect FIRST $effect"
-		effect_$effect
-	fi
+	advance_queue effect "FIRST effect {}"
 
 	##
 	# playback operations
@@ -162,17 +380,17 @@ if [[ -a "$control_file" ]]; then
 
 		whisper "dynamically loading list $listpath"
 		[[ $list_append = true ]] && append=1
-		echo "loadlist '$listpath' $append"  >> "$control_file"
+		mplayer_command "loadlist '$listpath' $append"
 
 	elif [[ -n $skip ]]; then
 
 		whisper "skipping: $skip"
-		echo "pt_step $skip 1" >> "$control_file"
+		mplayer_command "pt_step $skip 1"
 
 	elif [[ -n $command ]]; then
 
 		whisper "sending to mplayer: $command"
-		echo -e "$command" >> "$control_file"
+		mplayer_command -e "$command"
 
 	fi
 
@@ -182,7 +400,7 @@ if [[ -a "$control_file" ]]; then
 
 	if [[ -n $message ]]; then
 
-		whisper "preparing to speak message"
+		whisper "preparing to speak to device $device_id"
 		[[ -n $voice ]] && voice_options="-v $voice"
 
 		if [[ ? = $voice ]]; then
@@ -190,18 +408,12 @@ if [[ -a "$control_file" ]]; then
 			say $voice_options
 		else
 			current_volume=$(get_volume)
-			shout "Ducking audio and speaking message \"$message\"."
-			effect_fade $duck_volume
-			say -a $device_id $voice_options "$message"
-			effect_fade $current_volume
+			say -ia $device_id $voice_options "$message"
 		fi
 
 	fi
 
-	if [[ -n $effect && $effect_optind -gt $first_optind ]]; then
-		whisper "doing effect LAST $effect"
-		effect_$effect
-	fi
+	purge_queue effect "REMAINING effect {}"
 
 elif [[ $broadcast = true ]]; then # new brodcast
 
@@ -266,7 +478,9 @@ if [[ -n $playlist_option || -n $mplayer_options ]]; then
 		mkfifo "$mplayer_output"
 		start_daemon -o $mplayer_output mplayer $input_options $video_options $audio_options $shuffle_option -loop 0 $playlist_option $mplayer_options
 	else
-		$mplayer_output mplayer $input_options $video_options $audio_options $shuffle_option -loop 0 $playlist_option $mplayer_options
+		whisper "starting mplayer normally\n"
+		whisper "  mplayer $input_options $video_options $audio_options $shuffle_option -loop 0 $playlist_option $mplayer_options"
+		mplayer $input_options $video_options $audio_options $shuffle_option -loop 0 $playlist_option $mplayer_options
 	fi
 
 fi
