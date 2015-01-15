@@ -238,6 +238,31 @@ function purge_queue() {
 	done
 }
 
+function download_youtube_playlist() {
+	local playlist_url playlist_name listpath download_dir
+	playlist_url="$1"
+	playlist_name="$2"
+
+	if [[ -z $playlist_name ]]; then
+		shout "Unable in this version to get playlist name from YouTube. Please give a name for this playlist"
+		exit 1
+	fi
+
+	wd="$(pwd)"
+	download_dir="$wd/$playlist_name"
+	mkdir -p "$download_dir"
+	cd "$download_dir"
+
+	whisper "downloading from YouTube to new playlist $playlist_name"
+	whisper "$playlist_url"
+
+	listpath="$default_playlist_dir/$playlist_name.m3u"
+
+	youtube-dl -f bestaudio "$playlist_url" --exec 'echo '"$download_dir"'/{} >> '"$listpath"
+
+	cd "$wd"
+}
+
 ##
 # setup
 ##
@@ -260,7 +285,7 @@ eq_boom=2:8:0:0:0:0:0:0:0:0
 # effect=()
 # effect_optind=()
 
-while getopts "sve:by:V:l:anpkqx:c:St:i" flag
+while getopts "sve:by:V:l:anpkqx:c:St:iY:" flag
 do
 
 	[[ -z $first_optind ]] && first_optind=$OPTIND
@@ -299,6 +324,13 @@ if [[ $kill = true ]]; then
 
 	kill_daemons
 	rm -rf $tmp_dir/*
+
+fi
+
+if [[ -n $download_youtube_url && -n $list ]]; then
+
+	download_youtube_playlist $download_youtube_url $list
+	exit 0
 
 fi
 
