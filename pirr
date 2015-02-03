@@ -293,7 +293,7 @@ eq_boom=2:8:0:0:0:0:0:0:0:0
 # effect=()
 # effect_optind=()
 
-while getopts "sve:by:V:l:anpkqx:c:St:iY:I" flag
+while getopts "sve:by:V:l:anpkqx:c:St:iY:IE" flag
 do
 
 	[[ -z $first_optind ]] && first_optind=$OPTIND
@@ -323,9 +323,16 @@ do
 		I ) interactive=true;;
 
 		Y ) download_youtube_url=$OPTARG;;
+		E ) edit_script=true;;
   esac
 
 done
+
+if [[ $edit_script = true ]]; then
+	shout "editing the pirr script"
+	vim "$script_path"
+	exit 0
+fi
 
 whisper "starting pirate radio script"
 whisper "using config $config_path"
